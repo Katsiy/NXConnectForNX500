@@ -34,3 +34,10 @@ gradle-wrapper.jar binary
 *.kts linguist-language=Kotlin
 docs/** linguist-documentation
 tools/** linguist-vendored=false
+
+# Gradle wrapper：jar 是二进制，脚本换行符不能动
+# ★ gradlew.bat 必须是 CRLF：cmd.exe 对 LF 的批处理会逐字符截断执行
+#   （本项目的 gradlew.bat 曾因为被写成 LF 而完全无法运行）
+gradlew text eol=lf
+gradlew.bat text eol=crlf
+gradle/wrapper/gradle-wrapper.jar binary
