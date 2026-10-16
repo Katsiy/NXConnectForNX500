@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- ============ 品牌色（蓝青，与图标一致）============ -->
+    <color name="nx_primary">#4C8DFF</color>
+    <color name="nx_on_primary">#0A1020</color>
+    <color name="nx_primary_container">#1B3566</color>
+    <color name="nx_on_primary_container">#D6E3FF</color>
+
+    <color name="nx_secondary">#7FD4FF</color>
+    <color name="nx_on_secondary">#06202E</color>
+    <color name="nx_secondary_container">#14405A</color>
+    <color name="nx_on_secondary_container">#CCE9FF</color>
+
+    <color name="nx_tertiary">#8ED9A8</color>
+    <color name="nx_on_tertiary">#062015</color>
+
+    <color name="nx_error">#FF6B6B</color>
+    <color name="nx_on_error">#2A0A0A</color>
+    <color name="nx_error_container">#5C1F1F</color>
+    <color name="nx_on_error_container">#FFDAD6</color>
+
+    <!-- ============ 表面层级 ============ -->
+    <color name="nx_background">#0C1017</color>
+    <color name="nx_on_background">#E4E8F0</color>
+    <color name="nx_surface">#111721</color>
+    <color name="nx_on_surface">#E4E8F0</color>
+    <color name="nx_surface_variant">#3A4354</color>
+    <color name="nx_on_surface_variant">#A9B4C6</color>
+    <color name="nx_surface_container">#18202C</color>
+    <color name="nx_surface_container_high">#1E2836</color>
+    <color name="nx_surface_container_highest">#243040</color>
+
+    <color name="nx_outline">#4A5568</color>
+    <color name="nx_outline_variant">#2C3542</color>
+
+    <!-- ============ 语义色 ============ -->
+    <color name="nx_ok">#5BD98A</color>
+    <color name="nx_warn">#F5C061</color>
+    <color name="nx_text_dim">#A9B4C6</color>
+    <!-- 说明性文字：比正文更淡的灰，用于"相机硬件不提供…"这类提示 -->
+    <color name="nx_text_note">#7C8798</color>
+
+    <!-- ============ 兼容旧引用 ============ -->
+    <color name="nx_accent">#4C8DFF</color>
+    <color name="nx_on_accent">#0A1020</color>
+    <color name="nx_surface_dark">#0C1017</color>
+    <color name="nx_bg">#0C1017</color>
+    <color name="nx_card">#18202C</color>
+    <color name="nx_err">#FF6B6B</color>
+</resources>

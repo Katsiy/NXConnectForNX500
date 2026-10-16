@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  遥控按键面板：三组分区（曝光参数 / 拍摄模式与驱动 / 导航与转盘）。
+
+  分组依据来自相机端 keyinput.js 的键表：
+    A 组 有专用键的曝光参数（ISO/白平衡/测光/对焦/曝光补偿/AE锁定）
+    B 组 方向键与转盘（改数值的主力）
+    C 组 拍摄模式与驱动模式一键切换
+
+  里面每个按钮都在运行时动态生成（见 RemoteActivity.buildKeyPanel），
+  因为要支持「按住生效」语义，用 XML 写会非常啰嗦。
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/keyPanel"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+
+    <TextView
+        style="@style/NxSectionTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:text="@string/sec_exposure" />
+
+    <LinearLayout
+        android:id="@+id/gridExposure"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:orientation="vertical" />
+
+    <TextView
+        style="@style/NxSectionTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:text="@string/sec_mode" />
+
+    <LinearLayout
+        android:id="@+id/gridMode"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:orientation="vertical" />
+
+    <TextView
+        style="@style/NxSectionTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:text="@string/sec_nav" />
+
+    <LinearLayout
+        android:id="@+id/gridNav"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:orientation="vertical" />
+
+    <TextView
+        style="@style/NxNote"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:text="@string/hold_hint" />
+</LinearLayout>

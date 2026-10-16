@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  背景层故意用**纯色**，不放渐变。
+  原因：自适应图标里前景与背景是两层独立缩放叠加的，
+  如果两层都画渐变，尺寸对不上就会露出一圈"内方块接缝"（踩过这个坑）。
+  渐变全部交给前景层负责，背景只做兜底纯色。
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="#0A0F18" />
+</shape>

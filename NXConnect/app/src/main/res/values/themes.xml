@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- Material 3 主题。用 NoActionBar 是因为各页面自己放 MaterialToolbar，
+         这样能控制状态栏内边距（修掉被状态栏/刘海挡住的问题）。 -->
+    <style name="Theme.NXConnect" parent="Theme.Material3.Dark.NoActionBar">
+        <item name="colorPrimary">@color/nx_primary</item>
+        <item name="colorOnPrimary">@color/nx_on_primary</item>
+        <item name="colorPrimaryContainer">@color/nx_primary_container</item>
+        <item name="colorOnPrimaryContainer">@color/nx_on_primary_container</item>
+        <item name="colorSecondary">@color/nx_secondary</item>
+        <item name="colorOnSecondary">@color/nx_on_secondary</item>
+        <item name="colorSecondaryContainer">@color/nx_secondary_container</item>
+        <item name="colorOnSecondaryContainer">@color/nx_on_secondary_container</item>
+        <item name="colorTertiary">@color/nx_tertiary</item>
+        <item name="colorOnTertiary">@color/nx_on_tertiary</item>
+        <item name="colorError">@color/nx_error</item>
+        <item name="colorOnError">@color/nx_on_error</item>
+        <item name="colorErrorContainer">@color/nx_error_container</item>
+        <item name="colorOnErrorContainer">@color/nx_on_error_container</item>
+
+        <item name="android:colorBackground">@color/nx_background</item>
+        <item name="colorOnBackground">@color/nx_on_background</item>
+        <item name="colorSurface">@color/nx_surface</item>
+        <item name="colorOnSurface">@color/nx_on_surface</item>
+        <item name="colorSurfaceVariant">@color/nx_surface_variant</item>
+        <item name="colorOnSurfaceVariant">@color/nx_on_surface_variant</item>
+        <item name="colorSurfaceContainer">@color/nx_surface_container</item>
+        <item name="colorSurfaceContainerHigh">@color/nx_surface_container_high</item>
+        <item name="colorSurfaceContainerHighest">@color/nx_surface_container_highest</item>
+        <item name="colorOutline">@color/nx_outline</item>
+        <item name="colorOutlineVariant">@color/nx_outline_variant</item>
+
+        <!-- 透明系统栏，内容延伸到状态栏/导航栏下方，由各页面的 insets 处理 -->
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+        <item name="android:windowBackground">@color/nx_background</item>
+        <item name="materialCardViewStyle">@style/NxCard</item>
+        <item name="materialButtonStyle">@style/NxButton</item>
+        <item name="toolbarStyle">@style/NxToolbar</item>
+    </style>
+
+    <style name="Theme.NXConnect.Viewer" parent="Theme.NXConnect">
+        <item name="android:windowBackground">@android:color/black</item>
+    </style>
+
+    <style name="NxCard" parent="Widget.Material3.CardView.Filled">
+        <item name="cardBackgroundColor">@color/nx_surface_container</item>
+        <item name="cardCornerRadius">20dp</item>
+        <item name="cardElevation">0dp</item>
+        <item name="contentPadding">0dp</item>
+    </style>
+
+    <style name="NxButton" parent="Widget.Material3.Button">
+        <item name="cornerRadius">16dp</item>
+        <item name="android:minHeight">52dp</item>
+        <item name="android:textSize">15sp</item>
+        <item name="android:letterSpacing">0.01</item>
+    </style>
+
+    <style name="NxButton.Outlined" parent="Widget.Material3.Button.OutlinedButton">
+        <item name="cornerRadius">16dp</item>
+        <item name="android:minHeight">52dp</item>
+        <item name="android:textSize">15sp</item>
+        <item name="strokeColor">@color/nx_outline</item>
+    </style>
+
+    <style name="NxButton.Tonal" parent="Widget.Material3.Button.TonalButton">
+        <item name="cornerRadius">16dp</item>
+        <item name="android:minHeight">52dp</item>
+        <item name="android:textSize">15sp</item>
+    </style>
+
+    <style name="NxToolbar" parent="Widget.Material3.Toolbar">
+        <item name="android:background">@android:color/transparent</item>
+        <item name="titleTextColor">@color/nx_on_surface</item>
+        <item name="subtitleTextColor">@color/nx_on_surface_variant</item>
+    </style>
+
+    <!-- 信息行：左标签右数值 -->
+    <style name="NxInfoLabel">
+        <item name="android:textColor">@color/nx_on_surface_variant</item>
+        <item name="android:textSize">13sp</item>
+        <item name="android:paddingTop">7dp</item>
+        <item name="android:paddingBottom">7dp</item>
+    </style>
+
+    <style name="NxInfoValue">
+        <item name="android:textColor">@color/nx_on_surface</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:paddingTop">7dp</item>
+        <item name="android:paddingBottom">7dp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="NxSectionTitle">
+        <item name="android:textColor">@color/nx_on_surface</item>
+        <item name="android:textSize">16sp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="NxNote">
+        <item name="android:textColor">@color/nx_text_note</item>
+        <item name="android:textSize">12sp</item>
+        <item name="android:lineSpacingExtra">3dp</item>
+    </style>
+
+    <!-- 遥控面板上的小按键：紧凑、圆角，用于密集排布 -->
+    <style name="NxKeyButton" parent="Widget.Material3.Button.OutlinedButton">
+        <item name="android:minWidth">0dp</item>
+        <item name="android:minHeight">44dp</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <item name="android:textSize">12sp</item>
+        <item name="android:paddingStart">4dp</item>
+        <item name="android:paddingEnd">4dp</item>
+        <item name="android:letterSpacing">0</item>
+        <item name="cornerRadius">12dp</item>
+        <item name="strokeColor">@color/nx_outline_variant</item>
+    </style>
+
+    <!-- 「按住生效」的键：用主色描边区分，暗示操作方式与单击键不同 -->
+    <style name="NxKeyButton.Hold">
+        <item name="strokeColor">@color/nx_primary</item>
+        <item name="android:textColor">@color/nx_primary</item>
+    </style>
+</resources>
