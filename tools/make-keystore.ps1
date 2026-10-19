@@ -1,4 +1,4 @@
-# 生成本地签名密钥
+﻿# 生成本地签名密钥
 #
 # 用法：
 #   pwsh tools/make-keystore.ps1
