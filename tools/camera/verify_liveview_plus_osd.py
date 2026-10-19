@@ -1,3 +1,5 @@
+import os
+import os
 """验证分层方案的前提：liveview 与 OSD 能否同时持续输出。
 
 这是 "OSD 叠加在 liveview 之上" 这个架构方案的**地基**。
@@ -100,7 +102,7 @@ def main():
     # 取景区大致在中间（避开右侧图标列 x>640 与底部参数栏 y>420）
     d_mid = dark_ratio(canvas, fw, fh, 60, 100, 620, 380)
     print("  中间区域(60,100)-(620,380) 近黑占比: %.1f%%" % d_mid)
-    Image.frombytes("RGBA", (fw, fh), canvas).convert("RGB").save(r"C:\DsNX\_host\dual_osd_alone.png")
+    Image.frombytes("RGBA", (fw, fh), canvas).convert("RGB").save(os.path.join(os.path.dirname(os.path.abspath(__file__)), "dual_osd_alone.png"))
 
     # ---------- 同时跑 ----------
     print("\n=== 2. liveview 与 OSD 同时跑 3 秒 ===")
@@ -169,7 +171,7 @@ def main():
         fw, fh, canvas, n, hashes_shared = canvas_from(raw)
         d = dark_ratio(canvas, fw, fh, 60, 100, 620, 380)
         print("  中间区域近黑占比: %.1f%%  （若仍接近 100%%，说明 OSD 恒为黑，可安全键控）" % d)
-        Image.frombytes("RGBA", (fw, fh), canvas).convert("RGB").save(r"C:\DsNX\_host\dual_osd_with_lv.png")
+        Image.frombytes("RGBA", (fw, fh), canvas).convert("RGB").save(os.path.join(os.path.dirname(os.path.abspath(__file__)), "dual_osd_with_lv.png"))
         print("  已存 _host/dual_osd_with_lv.png")
 
     print("\n=== 4. 对照：liveview 自身的中间区域亮度 ===")

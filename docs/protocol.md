@@ -6,6 +6,63 @@
 
 ---
 
+## English summary
+
+This document is the protocol contract for remotely controlling a **Samsung NX500**
+(firmware 1.12, DRIMe5 SoC, armv7l, glibc **2.13**). Everything here was verified
+against real hardware — anything unverified is marked as such. The full document is in
+Chinese; this summary is here so English-speaking reverse-engineers can tell whether it
+is useful before translating.
+
+### Critical prerequisite
+
+The stock firmware exposes **none** of these services. All of them come from a
+third-party camera-side package (see [NOTICE](../NOTICE)):
+
+| Port | Service | Purpose |
+|---|---|---|
+| **80** | `nx-remote-controller-daemon` (mongoose HTTP) | JSON API, liveview, input injection, OSD |
+| **8080** | busybox httpd + CGI | file listing, thumbnails |
+| **21** | FTP (root, no password) | raw file retrieval, root = SD card |
+| **23** | telnet (root, no password) | shell |
+| 5681/udp | daemon broadcast | device discovery |
+
+If the camera-side package is not installed, none of this works.
+
+### What the API gives you
+
+- **Liveview** — NV12 frames at 720×480, two quality levels
+  (`GET /api/v1/liveview/get` 518,400 B; `/get_low` 259,200 B)
+- **OSD mirror** — the camera's own screen as RGBA blocks, incremental by content hash
+  (`POST /api/v1/osd/get` with a 108×8-hex `hashs` parameter). Full frame 1,383,276 B,
+  changed-block responses typically 51 KB. This is the **only** way to read current
+  exposure settings (see below).
+- **Input injection** — X keysyms (`/api/v1/input/inject?key=…`). Keyboard injection is
+  reliable; mouse injection only works in some screen regions.
+- **Shutter** — half-press then release via `Super_L` / `Super_R` keysyms.
+
+### What is *not* possible (hardware limits, verified)
+
+- **Battery percentage** — not exposed. `st bat get_soc` returns `ret=-1`.
+- **Lens information** — MCB bus is held by the camera app.
+- **Reading or writing exposure parameters directly** — no usable path. `capdtm` exposes
+  exactly one parameter (`ADJUSTSHUTTERTYPE`); `setusr` and `mcb` produce no output.
+  The camera-side input injection is also broken (its `libxkbcommon` needs GLIBC 2.17,
+  the camera has 2.13), so you cannot script the camera's own UI either.
+  → **Therefore the OSD mirror is the only way to know what the camera is set to.**
+
+### Measured performance ceilings
+
+- Camera HTTP throughput: **~4.5–5 requests/second** total. The SoC is single-core and
+  the camera's own app holds ~59% CPU. Liveview and OSD share this budget.
+- OSD full frame: ~0.7 s (the camera redraws the whole overlay when the UI changes).
+
+Everything else — exact JSON payloads, NV12 plane layouts, telnet prompt quirks,
+`st` command availability — is in the Chinese sections below. Contributions that
+translate or extend this document are welcome.
+
+---
+
 ## 0. 端口与总体架构
 
 | 端口 | 进程 | 说明 |

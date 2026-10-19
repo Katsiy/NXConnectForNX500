@@ -16,7 +16,7 @@ from PIL import Image
 
 IP = sys.argv[1] if len(sys.argv) > 1 else "192.168.5.39"
 NBLOCK = 108
-OUT = sys.argv[2] if len(sys.argv) > 2 else r"C:\DsNX\_host\osd_now.png"
+OUT = sys.argv[2] if len(sys.argv) > 2 else os.path.join(os.path.dirname(os.path.abspath(__file__)), "osd_now.png")
 
 
 def http(url, timeout=30, data=None, method=None):

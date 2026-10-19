@@ -1,7 +1,19 @@
-"""Install a self-contained JDK + Android SDK + Gradle inside C:\\DsNX\\_host.
+"""Install a self-contained JDK + Android SDK + Gradle into a local directory.
 
-Nothing is installed system-wide; everything lives in the workspace tree so the
-build is reproducible and removable.
+Nothing is installed system-wide; everything lives in one removable directory so the
+build is reproducible and fully self-contained.
+
+Where it goes, in priority order:
+
+  1. first command-line argument
+  2. the ``NXPATH_HOST`` environment variable
+  3. ``_host`` next to the repository root (i.e. ``<repo>/../_host`` when this script
+     lives in ``<repo>/tools/``)
+
+Example::
+
+    python tools/setup_toolchain.py            # -> <repo>/_host
+    python tools/setup_toolchain.py D:/cache   # -> D:/cache
 """
 import os
 import shutil
@@ -12,16 +24,28 @@ import time
 import urllib.request
 import zipfile
 
-HOST = r"C:\DsNX\_host"
+_here = os.path.dirname(os.path.abspath(__file__))
+_repo = os.path.dirname(_here)
+
+if len(sys.argv) > 1 and sys.argv[1].strip():
+    HOST = os.path.abspath(sys.argv[1].strip())
+elif os.environ.get("NXPATH_HOST", "").strip():
+    HOST = os.path.abspath(os.environ["NXPATH_HOST"].strip())
+else:
+    # 脚本在 <repo>/tools/ 下，默认装到 <repo>/_host
+    HOST = os.path.join(_repo, "_host")
+
 JDK_DIR = os.path.join(HOST, "jdk")
 SDK_DIR = os.path.join(HOST, "android-sdk")
 GRADLE_DIR = os.path.join(HOST, "gradle")
 DL = os.path.join(HOST, "downloads")
 LOG = os.path.join(HOST, "toolchain-log.txt")
 os.makedirs(DL, exist_ok=True)
+print("toolchain target: %s" % HOST)
 lines = []
 
 CTX = ssl.create_default_context()
+
 CTX.check_hostname = False
 CTX.verify_mode = ssl.CERT_NONE
 UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) DSH-NX500-setup"}

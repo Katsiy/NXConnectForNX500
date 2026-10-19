@@ -1,3 +1,4 @@
+import os
 """找到 st 真正实现所在（capdtm 参数表在里面），并挖出参数名。
 
 已知：/usr/bin/st 只有 4680 字节，是个壳；真正的实现应该在某个 lib 或另一个
@@ -106,14 +107,14 @@ def main():
         "done; wc -l $OUT", wait=20))
 
     print("\n=== 4) 取回 ===")
-    print("   " + ftp_get("/capstr.txt", r"C:\DsNX\_host\capstr.txt"))
+    print("   " + ftp_get("/capstr.txt", os.path.join(os.path.dirname(os.path.abspath(__file__)), "capstr.txt")))
     print(sh.send("ls -l /mnt/mmc/capstr.txt", wait=1.5))
 
     sh.close()
 
     print("\n=== 本地分析 ===")
     try:
-        txt = open(r"C:\DsNX\_host\capstr.txt", encoding="utf-8", errors="replace").read()
+        txt = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "capstr.txt"), encoding="utf-8", errors="replace").read()
     except Exception as e:
         print("  读取失败 %s" % e)
         return

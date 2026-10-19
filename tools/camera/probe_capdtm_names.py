@@ -1,3 +1,4 @@
+import os
 """最后一个关键探测：capdtm 的合法参数名表，以及能否写入。
 
 上一轮走偏了：从 libcapture-fw-prod.so 挖到的是**图像处理内部函数名**
@@ -132,13 +133,13 @@ def main():
         "cat $OUT", wait=25))
 
     print("\n=== 6) 取回结果文件 ===")
-    print("   " + ftp_get("/adjust.txt", r"C:\DsNX\_host\adjust.txt"))
+    print("   " + ftp_get("/adjust.txt", os.path.join(os.path.dirname(os.path.abspath(__file__)), "adjust.txt")))
 
     sh.close()
 
     print("\n=== 本地看结果 ===")
     try:
-        print(open(r"C:\DsNX\_host\adjust.txt", encoding="utf-8", errors="replace").read())
+        print(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "adjust.txt"), encoding="utf-8", errors="replace").read())
     except Exception as e:
         print("  读取失败 %s" % e)
 

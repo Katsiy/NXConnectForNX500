@@ -1,3 +1,4 @@
+import os
 """挖出 st 命令里 capdtm 真正支持的所有参数名。
 
 已知：`getusr ADJUSTSHUTTERTYPE` 成功，但另外 12 个我猜的名字全部
@@ -102,14 +103,14 @@ def main():
                   "ls -l /mnt/mmc/st_strings.txt", wait=4))
 
     print("\n3) 取回")
-    print("   " + ftp_get("/st_strings.txt", r"C:\DsNX\_host\st_strings.txt"))
+    print("   " + ftp_get("/st_strings.txt", os.path.join(os.path.dirname(os.path.abspath(__file__)), "st_strings.txt")))
 
     sh.close()
 
     # ---------- 本地分析 ----------
     print("\n=== 本地分析 st_strings.txt ===")
     try:
-        txt = open(r"C:\DsNX\_host\st_strings.txt", encoding="utf-8", errors="replace").read()
+        txt = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "st_strings.txt"), encoding="utf-8", errors="replace").read()
     except Exception as e:
         print("  读取失败: %s" % e)
         return

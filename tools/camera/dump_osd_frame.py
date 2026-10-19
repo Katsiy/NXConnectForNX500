@@ -1,3 +1,4 @@
+import os
 """把 OSD 的一帧存成 PNG，并自动判定像素格式。
 
 这是 E 组的最后一块拼图：拿到 OSD 原始像素后，要确认
@@ -22,8 +23,10 @@ import urllib.request
 from PIL import Image
 
 IP = sys.argv[1] if len(sys.argv) > 1 else "192.168.5.39"
-OUT = r"C:\DsNX\_host\osd_frame.png"
-OUT_CAND = r"C:\DsNX\_host\osd_cand_%s.png"
+OUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "out")
+os.makedirs(OUT_DIR, exist_ok=True)
+OUT = os.path.join(OUT_DIR, "osd_frame.png")
+OUT_CAND = os.path.join(OUT_DIR, "osd_cand_%s.png")
 
 
 def http(url, timeout=25, data=None, method=None):

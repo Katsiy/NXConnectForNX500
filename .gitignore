@@ -55,3 +55,6 @@ NX-KS*.zip
 
 # 本机路径相关
 local.properties
+# 与本项目无关的本地素材（AI 工具的调研资料等）
+_openviking_research/
+_openviking*/
