@@ -30,7 +30,10 @@ jobs:
       - name: 配置 Android SDK
         uses: android-actions/setup-android@v3
         with:
-          packages: 'platforms;android-35,build-tools;35.0.0'
+          # ★ 这个输入是**空格**分隔，不是逗号。
+          #   写 'platforms;android-35,build-tools;35.0.0' 会被当成一个包名传给
+          #   sdkmanager，直接 exit code 1。
+          packages: 'platforms;android-35 build-tools;35.0.0'
 
       - name: 配置 Gradle 缓存
         # 注意：这个 action 的命名空间是 gradle/actions，不是 actions/
