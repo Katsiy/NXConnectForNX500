@@ -33,7 +33,9 @@ jobs:
           packages: 'platforms;android-35,build-tools;35.0.0'
 
       - name: 配置 Gradle 缓存
-        uses: actions/setup-gradle@v4
+        # 注意：这个 action 的命名空间是 gradle/actions，不是 actions/
+        # 写成 actions/setup-gradle 会得到 "Unable to resolve action ... repository not found"
+        uses: gradle/actions/setup-gradle@v4
 
       # ★ 这里刻意用 assembleDebug 而不是 assembleRelease：
       #   仓库中不含签名密钥（见 NOTICE 与 tools/make-keystore.ps1），
