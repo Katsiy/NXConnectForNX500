@@ -3,6 +3,9 @@
 **把三星 NX500 相机连上 Android 手机** —— 浏览 SD 卡、下载照片与 RAW、实时取景、
 遥控快门与 B 门长曝光、**镜像相机屏幕并用手机操作相机菜单**。
 
+*由于NX1底层与NX500基本一致，故应该也可直接使用本项目。
+**NX300、NX3000等机型尚未适配，若刷入了支持Telnet的固件也可尝试使用，但无法保证体验。
+
 [![build](https://github.com/Katsiy/NXConnectForNX500/actions/workflows/build.yml/badge.svg)](https://github.com/Katsiy/NXConnectForNX500/actions/workflows/build.yml)
 ![tests](https://img.shields.io/badge/tests-110%20passing-brightgreen)
 ![license](https://img.shields.io/badge/license-AGPL--3.0-blue)
@@ -11,28 +14,34 @@
 
 ## 它能做什么
 
+
 | 功能 | 说明 |
 |---|---|
 | **相册浏览** | 按目录浏览相机 SD 卡，网格显示缩略图 |
 | **下载** | 原图与 RAW（SRW）下载，带进度 |
-| **实时取景** | 相机画面实时投到手机，两档画质（均为 720×480） |
-| **快门** | 半按对焦 + 释放，可选静音快门 |
+| **实时取景** | 相机画面实时投到手机，两档画质 |
+| **快门** | 对焦 + 释放 |
 | **B 门长曝光** | App 内计时，可同时关闭相机屏幕省电/避免漏光 |
-| **相机屏幕镜像** | **把相机自己的屏幕投到手机上，并能用手机按键操作相机菜单** —— 这是改曝光参数的唯一途径（见下） |
+| **相机屏幕镜像** | **把相机自己的屏幕投到手机上，并能用手机按键操作相机菜单**  |
 | **遥控按键** | 30 个按键（P/A/S/M、ISO、白平衡、测光、转盘……），映射自相机机身实体键 |
 | **自动同步时间** | 连接后静默同步相机时钟 |
 
-![相机菜单](docs/images/osd_menu.png)
+程序主界面
+
+<img width="720" height="1600" alt="9c5d055f5330453cb2bd976cd0345f5a" src="https://github.com/user-attachments/assets/95a7fc32-3962-42bb-aa9a-0211ee7d9cb2" />
+
+照片传输界面
+
+<img width="640" height="1422" alt="cb16500c54e44a722e53c5bb1fee3943_720" src="https://github.com/user-attachments/assets/fd726ee6-2b97-4e92-a25b-3babd89b1834" />
+
+遥控界面
+
+<img width="432" height="960" alt="72aac18b7df2a29cf74c9f265590edee" src="https://github.com/user-attachments/assets/c92d2ff0-d534-4072-b85a-758289b95c34" />
+
 
 上图是**相机自己的屏幕**经 OSD 接口取回来的样子（左侧分组标签，右侧「照片尺寸 /
 画质 / ISO / 自定义 ISO / OLED 颜色」）。App 把这张画面叠加在实时取景之上，
 于是你能一边看构图、一边用手机按键在相机菜单里改参数。
-
-再看一张相机拍摄界面（右侧图标列 + 底部参数栏，中间的黑区是取景画面本应占据的位置）：
-
-![相机拍摄界面](docs/images/osd_shooting.png)
-
----
 
 ## ⚠️ 前提：相机端必须装第三方组件
 
@@ -40,9 +49,9 @@
 （它们都包含同一个遥控服务）：
 
 - [nx-remote-controller-mod](https://github.com/mewlips/nx-remote-controller-mod)
-- NX-KS2 / [NX-WA](https://github.com/WApaperplane/NXWA-nx500_modding) 这类整合包
+- NX-KS（https://github.com/ottokiksmaler/nx500_nx1_modding） / [NX-WA](https://github.com/WApaperplane/NXWA-nx500_modding) 这类整合包
 
-装好后，相机上按 `MOBILE` 键即可启动服务，相机会开一个 Wi-Fi 热点。
+装好后，相机上开启Telnet并连接WiFi即可启动服务。
 
 **本仓库不包含、也不分发这些组件**，请自行从上游获取。
 它们与本项目无隶属关系，各自以自己的许可证发布（详见 [NOTICE](NOTICE)）。
@@ -61,7 +70,7 @@
 要求 **Android 7.0 (API 24) 及以上**。
 
 **首次连接**：App 会自动搜索相机（UDP 广播 + 全段扫描兜底）。
-搜不到可以手动填 IP —— 相机默认 `192.168.5.39`，但它是 DHCP 客户端，**地址可能变**。
+搜不到可以手动填 IP。
 
 ---
 
