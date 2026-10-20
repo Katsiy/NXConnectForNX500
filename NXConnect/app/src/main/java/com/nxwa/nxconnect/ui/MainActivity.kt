@@ -298,7 +298,7 @@ class MainActivity : AppCompatActivity() {
 
                 is CameraDiscovery.Result.CameraWithoutDaemon -> {
                     status("${result.ip}：${result.hint}", R.color.nx_warn)
-                    toast("连上了设备，但相机端遥控服务没有响应。请在相机上按 MOBILE 键启动。")
+                    toast("连上了设备，但相机端遥控服务没有响应。请确认相机端 mod 已启用（见帮助）。")
                 }
 
                 is CameraDiscovery.Result.NotFound -> {

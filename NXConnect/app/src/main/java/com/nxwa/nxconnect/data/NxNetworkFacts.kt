@@ -34,7 +34,10 @@ object NxNetworkFacts {
     const val HELP_TEXT = """
 请按以下顺序确认相机已就绪：
 
-1. 相机上按 MOBILE 键（装了 NX-KS / NX-WA mod 时，这会启动 Web 遥控服务）
+1. 在相机端启用遥控服务。启用的方式取决于你装的 mod：
+   · NX-KS（nx500_nx1_modding）→ 开启 Telnet，并让相机连上 WiFi，服务会随之启动
+   · 部分其它 mod → 需要按相机上的 MOBILE 键
+   具体以你所装 mod 的说明为准，见项目 README 的「前提」一节。
 2. 相机屏幕菜单里会显示自己的 IP，例如 192.168.43.90 或 192.168.0.105
 3. 手机连到与相机相同的网络：
    · 相机做热点 → 在系统设置里连接 NX500 开头的 Wi-Fi

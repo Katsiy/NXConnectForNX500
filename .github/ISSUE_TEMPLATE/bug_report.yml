@@ -35,8 +35,8 @@ body:
       label: 相机端装的组件
       description: |
         本 App 需要相机端已安装相应组件才能工作。请说明装的是哪个、什么版本。
-        如果相机上按 MOBILE 键会启动 Web 遥控服务，说明装好了。
-      placeholder: "例如：nx-remote-controller-mod 0.9 / NX-KS2 / NX-WA"
+        例如 NX-KS（nx500_nx1_modding）、NX-WA，或单独的 nx-remote-controller-mod。
+      placeholder: "例如：nx-remote-controller-mod 0.9 / NX-KS / NX-WA"
     validations:
       required: true
 

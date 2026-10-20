@@ -3,8 +3,9 @@
 **把三星 NX500 相机连上 Android 手机** —— 浏览 SD 卡、下载照片与 RAW、实时取景、
 遥控快门与 B 门长曝光、**镜像相机屏幕并用手机操作相机菜单**。
 
-*由于NX1底层与NX500基本一致，故应该也可直接使用本项目。
-**NX300、NX3000等机型尚未适配，若刷入了支持Telnet的固件也可尝试使用，但无法保证体验。
+> **机型兼容性**
+> NX1 的底层与 NX500 基本一致，因此应该也可直接使用本项目。
+> NX300、NX3000 等机型尚未适配；若刷入了支持 Telnet 的固件也可尝试，但无法保证体验。
 
 [![build](https://github.com/Katsiy/NXConnectForNX500/actions/workflows/build.yml/badge.svg)](https://github.com/Katsiy/NXConnectForNX500/actions/workflows/build.yml)
 ![tests](https://img.shields.io/badge/tests-110%20passing-brightgreen)

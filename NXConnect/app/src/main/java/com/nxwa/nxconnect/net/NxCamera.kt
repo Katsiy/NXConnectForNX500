@@ -527,7 +527,7 @@ class NxCamera(
             else -> CameraMode.STOCK
         }
         if (mode == CameraMode.STOCK) {
-            notes += "端口 80 无可用服务：请按帮助步骤启用相机端服务（MOBILE 键或 SD 卡 autoexec.sh）"
+            notes += "端口 80 无可用服务：请在相机端启用遥控服务（见 README 的「前提」一节）"
         }
 
         CameraCapabilities(

@@ -53,8 +53,13 @@ pwsh tools/make-keystore.ps1
 
 ### 相机侧
 
-需要相机上已安装 `nx-remote-controller-mod`（或 NX-KS2 / NX-WA 这类包含它的整合包）。
-装好后按相机上的 `MOBILE` 键启动服务，相机会开一个热点。
+需要相机上已安装 `nx-remote-controller-mod`（或
+[NX-KS](https://github.com/ottokiksmaler/nx500_nx1_modding) / [NX-WA](https://github.com/WApaperplane/NXWA-nx500_modding)
+这类包含它的整合包）。
+
+装好后在相机端启用遥控服务。启用方式取决于所装的 mod：NX-KS 一般是开启 Telnet 并让相机
+连上 WiFi 后服务随之启动；部分其它 mod 需要按相机上的 `MOBILE` 键。
+具体以该 mod 自己的说明为准。
 
 App 会通过 UDP 广播发现相机；也可以手动填 IP。
 
