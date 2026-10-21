@@ -40,8 +40,16 @@
 它们既不是用户设定值，也不是取景测光值，而是不会被更新的寄存器。
 
 反过来 `getusr` 已被证实**跟得上真实状态**（模式 S→M、ISO 变化都准确反映），
-所以界面只用它。光圈/快门要读真值，下一步应走相机能力表里的 PTP operation
-（`0x1102` Set Aperture 等），详见 [docs/capdtm-reference.md](docs/capdtm-reference.md) 第 6、8 节。
+所以界面只用它。
+
+⚠️ **而且这条只读通路有个致命限制**（2026-10-22 查清）：`st cap` 只在**相机 app
+关闭时**才有输出；app 正常运行（拍摄界面）时它 0.4 秒返回零输出、连 usage 都不打。
+所以本版的 telnet 参数显示**实际只在相机 app 未运行时生效**，属于诊断性质。
+
+光圈控制的研究结论：Wi-Fi 下没有 PTP/IP（15740 关闭），`0x1102` 是相机→镜头的
+卡口协议、主机发不了；`st cap lens oper_iris` 受同一限制且是工厂调试命令。
+**光圈/快门仍只能靠按键注入 + OSD 镜像**，详见
+[docs/capdtm-reference.md](docs/capdtm-reference.md) 第 6、8、9 节。
 
 ---
 
