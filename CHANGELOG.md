@@ -30,11 +30,18 @@
 （含 `VARIABLE_AV` / `TV` / `SV` / `EVC` / `BULBTIME` / `S2PUSHED`）。
 完整表与实测记录见 [docs/capdtm-reference.md](docs/capdtm-reference.md)。
 
-### 未做：直接写曝光参数
+### 未做：直接读写曝光三要素
 
 `setvar` 能改并回读，但**只改了影子变量**：写越界值 `0x7FFF` 也能原样读回、
-相机不做范围校验，S 模式下改 `TV` 时 `AV` 也不联动 —— 曝光引擎没有消费它。
-在找到让相机重载参数的方法（半按快门？切模式？）之前，不提供写入界面。
+相机不做范围校验 —— 曝光引擎没有消费它。
+
+`getvar` 读出来的 `AV/TV/SV/EVC` 同样不可信。三组对照实验（S 档 f/22、M 档 f/8、
+以及取景流活跃时）读数**逐字节相同**；`varlist` 里 61 个变量在两种状态下也完全一致。
+它们既不是用户设定值，也不是取景测光值，而是不会被更新的寄存器。
+
+反过来 `getusr` 已被证实**跟得上真实状态**（模式 S→M、ISO 变化都准确反映），
+所以界面只用它。光圈/快门要读真值，下一步应走相机能力表里的 PTP operation
+（`0x1102` Set Aperture 等），详见 [docs/capdtm-reference.md](docs/capdtm-reference.md) 第 6、8 节。
 
 ---
 

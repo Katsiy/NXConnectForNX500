@@ -76,6 +76,8 @@ class NxCapdtm(private val telnet: NxTelnet) {
      *
      * 单项失败不影响其它项（对应字段为 null）—— 相机在不同拍摄模式下
      * 可能拒绝某些参数，不该因此整块失败。
+     *
+     * ⚠️ 返回的 `*Raw` 字段**不可信**（见类注释）。真正可用的只有 `getusr` 那一组枚举。
      */
     @Throws(IOException::class)
     fun snapshot(): CapdtmSnapshot {
@@ -161,8 +163,19 @@ class NxCapdtm(private val telnet: NxTelnet) {
  * 名字型字段（[iso]、[whiteBalance] …）来自 `getusr`，值是相机给的**确切枚举名**，
  * 不需要任何换算 —— 这是本功能最可靠的部分。
  *
- * `*Raw` 字段来自 `getvar`，是原始定点数，**编码尚未校准**，
- * 不要直接当光圈/快门显示（见 [ExposureCodec]）。
+ * `*Raw` 字段来自 `getvar`。**实测这组值不随相机状态变化，不要显示给用户。**
+ *
+ * 证据（2026-10-22，NX500 1.12 + NX 30mm f/2）：
+ *
+ * | 相机屏幕 | AV | TV | SV | EVC |
+ * |---|---|---|---|---|
+ * | S 档，f/22，30″ | 0x60 | 0xFFB0 | 0 | 0x0A |
+ * | M 档，f/8.0，30″（已确认相机切到 MANUAL） | 0x60 | 0xFFB0 | 0 | 0x0A |
+ * | M 档 + 取景流活跃（每帧 259200 字节） | 0x60 | 0xFFB0 | 0 | 0x0A |
+ *
+ * 连 `varlist` 里 61 个变量在两种状态下也**逐字节相同**。
+ * 所以它们不是"用户设定值"，也不是"取景测光值"，而是**不会被更新的寄存器**。
+ * 光圈/快门要读真值，得走别的通路（相机能力表里的 PTP operation，如 0x1102 Set Aperture）。
  */
 data class CapdtmSnapshot(
     val iso: String? = null,
