@@ -15,7 +15,7 @@
 > 详见 [docs/model-compatibility.md](docs/model-compatibility.md)。
 
 [![build](https://github.com/Katsiy/NXConnectForNX500/actions/workflows/build.yml/badge.svg)](https://github.com/Katsiy/NXConnectForNX500/actions/workflows/build.yml)
-![tests](https://img.shields.io/badge/tests-110%20passing-brightgreen)
+![tests](https://img.shields.io/badge/tests-132%20passing-brightgreen)
 ![license](https://img.shields.io/badge/license-AGPL--3.0-blue)
 
 ---
@@ -106,7 +106,7 @@
 git clone https://github.com/Katsiy/NXConnectForNX500.git
 cd NXConnectForNX500/NXConnect
 
-# 单元测试（110 个）
+# 单元测试（132 个）
 ./gradlew :app:testDebugUnitTest
 
 # 构建
@@ -129,7 +129,7 @@ pwsh tools/make-keystore.ps1
 `tools/` 下有离线工具，**不需要相机**：
 
 ```bash
-# 模拟相机（双端口，含真实缩略图生成、快门后自动新增照片）
+# 模拟相机（双端口，含真实缩略图生成、快门后自动新增照片、OSD 屏幕镜像）
 python tools/mock_camera.py
 
 # 协议一致性自检
@@ -137,7 +137,15 @@ python tools/verify_mock_camera.py
 
 # NV12 取景解码算法校验（Kotlin 实现 vs 标准 BT.601）
 python tools/verify_nv12.py
+
+# 多机型 OSD 校验：分别以 NX500 / NX1 / NX300 身份起 mock，
+# 检查帧头尺寸、块数（108 / 120）、长度公式与增量行为
+python tools/verify_mock_osd.py
 ```
+
+> `mock_camera.py` 的 `--model` 参数会改变 OSD 与 `camera/info` 的机型相关字段，
+> 可以用它在没有 NX1 / NX300 的情况下回归多机型适配：
+> `python tools/mock_camera.py --model NX300`
 
 `tools/camera/` 下是 **40 个真机诊断脚本**，需要相机在线。
 它们假设相机端 telnet（23）与 FTP（21）可用 —— 那两个服务由相机端组件提供，不是原厂自带。

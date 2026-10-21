@@ -107,7 +107,9 @@ killall dfmsd      # 恢复触摸屏（dfmsd 会占屏显示绿点）
   ```powershell
   curl "http://<相机IP>:8080/cgi-bin/dirlist?p="
   curl -o t.jpg "http://<相机IP>:8080/cgi-bin/thumb?f=100PHOTO/SAM_0001.JPG&w=320&q=75"
-  # 看 t.jpg 是否是 15-30KB 的正常 JPEG；若正文是 "thumb error: ..." 说明 convert 缺失
+  # 看 t.jpg 是否是 15-30KB 的正常 JPEG；若正文是 "thumb error: ..." 说明 convert 不可用
+  # （官方发布包自带 ImageMagick：tools/usr/bin/convert，靠 chroot 调用；
+  #   机身上没有 convert 是正常的，别去装）
   ```
 
 ---

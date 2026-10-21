@@ -223,12 +223,21 @@ GET /api/v1/input/inject_keep_alive          # 保活
 
 keysym 名逐字对照相机端 `keyinput.js`。
 
-### 2.1 ⚠️ 相机端注入实测失效（本项目结论）
+### 2.1 按键注入：**可用**（曾经的"失效"结论已推翻）
 
-`nx-input-injector` 缺 `libxdo.so.3`（库在但不在 `LD_LIBRARY_PATH`），
-补上路径后撞上 `libxkbcommon.so.0` 要求 **GLIBC_2.17**，而相机是 glibc **2.13**。
+> ⚠️ **2026-10-21 修正**：本节原本写"注入在相机端失效、App 侧无法绕过"，那是基于
+> 一个中间状态下的误判。后续用 OSD 变化块数做客观判据实测，键盘注入**每次都可靠**
+> （`KP_Up` 25 块 / `KP_Enter` 98 块 / `Menu` 98 块，静止基线 0 块）。
+>
+> 所谓 `GLIBC_2.17` 门槛也不成立：官方发布包自带 **glibc 2.22 + `ld-2.22.so`**，
+> 并用 `chroot tools/` 运行工具（`common.sh` 里 `CHROOT="chroot $TOOLS_PATH"`），
+> 根本不去碰机身的 glibc 2.13。**不需要重新编译任何库。**
+>
+> 当时的报错来自"用 NX-KS 自带脚本、未 chroot 直接跑 injector"这一条路径。
+> 详见 [camera-side-input-failure.md](camera-side-input-failure.md) 的修正章节。
 
-**这是相机端的 ABI 问题，App 侧无法绕过。** 详见 `相机端遥控失效诊断报告.md`。
+唯一实际限制：**鼠标注入只在部分屏幕区域有效**（实测点击中央与右上无效、左下有效），
+键盘注入无此问题。
 
 XTEST 扩展**本来就在**（`Initializing built-in extension XTEST`），无需额外开启。
 

@@ -133,7 +133,7 @@ E 组可用，但**手感是「按一下 → 等约半秒 → 画面才变」**�
 - `net/NxOsdValidator.kt` + `NxOsdValidatorTest.kt` —— 接入层严格校验（17 用例）
 - `ui/OsdView.kt` —— 差分渲染（v0.11.0，GPT 实现，已编译通过）
 - `net/NxCamera.kt` / `net/NxHttp.kt` —— HTTP 层（含 POST 表单、串行锁）
-- 当前测试基线：**110/110 通过**
+- 当前测试基线：**132/132 通过**（v0.16.0）
 
 **需要重新设计的**：
 

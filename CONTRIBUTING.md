@@ -18,7 +18,7 @@
 ```bash
 cd NXConnect
 
-# 1. 单元测试必须全绿（当前 110 个）
+# 1. 单元测试必须全绿（当前 132 个）
 ./gradlew :app:testDebugUnitTest
 
 # 2. 能构建出 APK
