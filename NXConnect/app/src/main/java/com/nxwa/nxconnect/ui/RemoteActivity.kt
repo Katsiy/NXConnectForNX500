@@ -28,6 +28,7 @@ import androidx.lifecycle.lifecycleScope
 import com.nxwa.nxconnect.NxApp
 import com.nxwa.nxconnect.R
 import com.nxwa.nxconnect.databinding.ActivityRemoteBinding
+import com.nxwa.nxconnect.net.CameraProfile
 import com.nxwa.nxconnect.net.NxCamera
 import com.nxwa.nxconnect.remote.KeyMap
 import java.io.IOException
@@ -140,6 +141,9 @@ class RemoteActivity : AppCompatActivity() {
 
     /** 静音快门开关：影响下一次拍摄时设的 ADJUSTSHUTTERTYPE */
     private var silentMode = false
+
+    /** 最近一次应用到界面的机型档案；用于避免重复重建按键面板 */
+    private var appliedProfile: CameraProfile? = null
 
     // ---- B 门状态 ----
     /** 是否正在长曝光（S2 已按下未松开） */
@@ -365,6 +369,28 @@ class RemoteActivity : AppCompatActivity() {
             pendingInput != null -> LIVE_INPUT_INTERVAL_MS
             else -> LIVE_OVERLAY_INTERVAL_MS
         }
+        applyCameraProfile()
+    }
+
+    /**
+     * 把当前相机的机型档案应用到界面。
+     *
+     * - 叠加层比例：`LiveViewView` 用它判断取景与 OSD 是否同比例。
+     *   NX1/NX500 是 720×480（3:2），NX300 是 800×480（5:3）——
+     *   用 NX500 的常量去判断 NX300，会得出"比例不符"从而**永久禁用叠加**。
+     * - 按键面板：EV 键的 keysym、自定义模式、Wi-Fi 模式都随机型变化，
+     *   所以机型变化时要重建。
+     *
+     * 这个方法在 [configureLiveView] 末尾调用，而后者在读到相机信息后会被调用若干次，
+     * 所以机型信息一到位就会生效；用 [appliedProfile] 避免重复重建面板。
+     */
+    private fun applyCameraProfile() {
+        val profile = NxApp.camera?.profile ?: CameraProfile.UNKNOWN
+        b.liveView.osdFrameW = profile.osdFrameW
+        b.liveView.osdFrameH = profile.osdFrameH
+        if (appliedProfile == profile) return
+        appliedProfile = profile
+        buildKeyPanel()
     }
 
     private fun updatePreviewUi() {
@@ -837,9 +863,10 @@ class RemoteActivity : AppCompatActivity() {
 
     /** 生成三组按键。布局在 view_remote_keys.xml，按钮在这里动态建（要支持按住语义）。 */
     private fun buildKeyPanel() {
-        fillRows(gridExposure, KeyMap.GROUP_EXPOSURE, columns = 2)
-        fillRows(gridMode, KeyMap.GROUP_MODE, columns = 3)
-        fillRows(gridNav, KeyMap.GROUP_NAV, columns = 4)
+        val groups = KeyMap.groupsFor(NxApp.camera?.profile ?: CameraProfile.UNKNOWN)
+        fillRows(gridExposure, groups.exposure, columns = 2)
+        fillRows(gridMode, groups.mode, columns = 3)
+        fillRows(gridNav, groups.nav, columns = 4)
     }
 
     /**

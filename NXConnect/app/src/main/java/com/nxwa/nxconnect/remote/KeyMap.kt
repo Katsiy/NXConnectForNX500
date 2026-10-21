@@ -11,6 +11,8 @@
  */
 package com.nxwa.nxconnect.remote
 
+import com.nxwa.nxconnect.net.CameraProfile
+
 /**
  * 相机按键 → X11 keysym 映射。
  *
@@ -53,6 +55,9 @@ object KeyMap {
     const val LIGHT = "XF86TouchpadToggle"
     const val MF_ZOOM = "XF86TouchpadOff"
     const val WIFI = "XF86Mail"
+
+    /** Wi-Fi 拍摄模式：**仅 NX300**（上游 `keyinput.js`: `MODE_WIFI` → `F3`） */
+    const val MODE_WIFI = "F3"
 
     const val JOG1_CW = "XF86ScrollUp"
     const val JOG1_CCW = "XF86ScrollDown"
@@ -100,37 +105,14 @@ object KeyMap {
      */
     data class KeyDef(val label: String, val keysym: String, val hold: Boolean = false)
 
-    /** A 组：曝光相关专用键 */
-    val GROUP_EXPOSURE: List<KeyDef> = listOf(
-        KeyDef("ISO", ISO),
-        KeyDef("白平衡", WB),
-        KeyDef("测光", METER),
-        KeyDef("对焦模式", AF_MODE),
-        KeyDef("对焦触发", AF_ON),
-        KeyDef("景深预览", DEPTH),
-        KeyDef("曝光补偿", EV_NX500, hold = true),
-        KeyDef("AE 锁定", AEL, hold = true),
+    /** 一个机型对应的三组按键 */
+    data class Groups(
+        val exposure: List<KeyDef>,
+        val mode: List<KeyDef>,
+        val nav: List<KeyDef>,
     )
 
-    /** C 组：拍摄模式与驱动模式 */
-    val GROUP_MODE: List<KeyDef> = listOf(
-        KeyDef("P", MODE_P),
-        KeyDef("A", MODE_A),
-        KeyDef("S", MODE_S),
-        KeyDef("M", MODE_M),
-        KeyDef("智能", MODE_SMART),
-        KeyDef("场景", MODE_SCENE),
-        KeyDef("SAS", MODE_SAS),
-        KeyDef("自定义1", MODE_CUSTOM1),
-        KeyDef("自定义2", MODE_CUSTOM2),
-        KeyDef("单张", DRIVE_SINGLE),
-        KeyDef("连拍", DRIVE_CONTI_N),
-        KeyDef("高速连拍", DRIVE_CONTI_H),
-        KeyDef("定时", DRIVE_TIMER),
-        KeyDef("包围", DRIVE_BRACKET),
-    )
-
-    /** B 组：方向键 + 转盘 + 滚轮 */
+    /** B 组：方向键 + 转盘 + 滚轮 —— 与机型无关，三种机型共用 */
     val GROUP_NAV: List<KeyDef> = listOf(
         KeyDef("▲", UP),
         KeyDef("◀", LEFT),
@@ -149,6 +131,65 @@ object KeyMap {
         KeyDef("滚轮 +", WHEEL_CW),
         KeyDef("录制", REC),
     )
+
+    /**
+     * 按机型档案生成三组按键。
+     *
+     * 三处按机型的差异（依据见 `docs/model-compatibility.md`）：
+     *
+     * 1. **曝光补偿的 keysym**：NX1 用 `XF86WWW`，其余用 `XF86Reload` ——
+     *    上游 `keyinput.js` 里唯一按机型分支的键。用错的话该键在对应机型上无反应。
+     * 2. **自定义 1/2 模式**：网页 UI 标记为 `nx1-nx500-only`，NX300 没有。
+     * 3. **Wi-Fi 模式**：网页 UI 标记为 `nx300-only`，keysym 是 `F3`。
+     */
+    fun groupsFor(profile: CameraProfile): Groups {
+        val exposure = listOf(
+            KeyDef("ISO", ISO),
+            KeyDef("白平衡", WB),
+            KeyDef("测光", METER),
+            KeyDef("对焦模式", AF_MODE),
+            KeyDef("对焦触发", AF_ON),
+            KeyDef("景深预览", DEPTH),
+            // ↓ 唯一随机型变化的 keysym
+            KeyDef("曝光补偿", profile.evKeysym, hold = true),
+            KeyDef("AE 锁定", AEL, hold = true),
+        )
+
+        val mode = mutableListOf(
+            KeyDef("P", MODE_P),
+            KeyDef("A", MODE_A),
+            KeyDef("S", MODE_S),
+            KeyDef("M", MODE_M),
+            KeyDef("智能", MODE_SMART),
+            KeyDef("场景", MODE_SCENE),
+            // SAS 的 keysym 相同，但相机端行为不同：NX500 是 SamsungAutoShot，
+            // NX300 是「镜头优先」。标签保持中性。
+            KeyDef("SAS", MODE_SAS),
+        )
+        if (profile.hasCustomModes) {
+            mode += KeyDef("自定义1", MODE_CUSTOM1)
+            mode += KeyDef("自定义2", MODE_CUSTOM2)
+        }
+        if (profile.hasWifiMode) {
+            mode += KeyDef("Wi-Fi", MODE_WIFI)
+        }
+        mode += KeyDef("单张", DRIVE_SINGLE)
+        mode += KeyDef("连拍", DRIVE_CONTI_N)
+        mode += KeyDef("高速连拍", DRIVE_CONTI_H)
+        mode += KeyDef("定时", DRIVE_TIMER)
+        mode += KeyDef("包围", DRIVE_BRACKET)
+
+        return Groups(exposure, mode, GROUP_NAV)
+    }
+
+    /** NX500 的默认分组（保留旧引用；与 `groupsFor(CameraProfile.NX500)` 等价） */
+    private val DEFAULT_GROUPS: Groups = groupsFor(CameraProfile.NX500)
+
+    /** A 组：曝光相关专用键（NX500 版） */
+    val GROUP_EXPOSURE: List<KeyDef> = DEFAULT_GROUPS.exposure
+
+    /** C 组：拍摄模式与驱动模式（NX500 版） */
+    val GROUP_MODE: List<KeyDef> = DEFAULT_GROUPS.mode
 
     /** 兼容旧引用：所有按键的扁平列表（显示名 → keysym） */
     val PANEL: List<Pair<String, String>> =

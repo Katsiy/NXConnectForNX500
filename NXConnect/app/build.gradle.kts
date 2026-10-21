@@ -23,8 +23,8 @@ android {
         minSdk = 24
         targetSdk = 35
         // 版本规则：<主>.<次>.<修订>；每加一次功能或修一批 bug 就把 versionCode +1
-        versionCode = 31
-        versionName = "0.15.2"
+        versionCode = 32
+        versionName = "0.16.0"
 
         buildConfigField("String", "BUILD_STAMP", "\"$buildStamp\"")
         resValue("string", "build_stamp", "\"$buildStamp\"")

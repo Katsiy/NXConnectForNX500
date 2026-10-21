@@ -6,6 +6,13 @@
 > **机型兼容性**
 > NX1 的底层与 NX500 基本一致，因此应该也可直接使用本项目。
 > NX300、NX3000 等机型尚未适配；若刷入了支持 Telnet 的固件也可尝试，但无法保证体验。
+>
+> **v0.16.0 起会按机型自适应**：OSD 帧尺寸（NX1/NX500 是 720×480，NX300 是 800×480）、
+> 曝光补偿键的 keysym（NX1 用 `XF86WWW`，其余 `XF86Reload`）、
+> 自定义模式与 Wi-Fi 模式键的可见性。
+> 其中 **NX500 已真机实测**；NX1 / NX300 的规格来自上游源码与官方发布包考证，
+> **尚未在本项目里真机验证**。遇到问题欢迎开 issue，附上机型、固件版本与诊断脚本输出，
+> 详见 [docs/model-compatibility.md](docs/model-compatibility.md)。
 
 [![build](https://github.com/Katsiy/NXConnectForNX500/actions/workflows/build.yml/badge.svg)](https://github.com/Katsiy/NXConnectForNX500/actions/workflows/build.yml)
 ![tests](https://img.shields.io/badge/tests-110%20passing-brightgreen)
@@ -85,7 +92,7 @@
 | **拿不到镜头信息** | MCB 总线被相机自身 App 占用，`st cap lens` 报 `Cann't execute capture command over MCB!` |
 | **无法直接读写曝光参数** | 没有可用通路：`capdtm` 只能读到 1 个参数，`setusr`/`mcb` 无输出，也没有参数查询接口 |
 | **所以改参数只能靠屏幕镜像** | 这是上面两条的直接后果 —— App 无法知道"现在是 ISO 800"，只能把相机屏幕投出来自己看 |
-| **取景分辨率固定 720×480** | 相机只提供两档（`/liveview/get` 与 `/liveview/get_low`），没有第三档 |
+| **取景分辨率固定**（NX1/NX500 720×480，NX300 800×480） | 相机只提供两档（`/liveview/get` 与 `/liveview/get_low`），没有第三档 |
 | **相机端 HTTP 吞吐约 4.5~5 请求/秒** | 相机是单核，相机自身 App 常驻占 59% CPU。取景与屏幕镜像同时开时会分掉这个预算 |
 
 **相机屏幕的"变化帧"需要整屏重绘，一次约 0.7 秒** —— 这是相机端的物理上限，

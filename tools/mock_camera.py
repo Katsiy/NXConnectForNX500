@@ -61,6 +61,7 @@ import http.server
 import json
 import posixpath
 import signal
+import struct
 import sys
 import threading
 import time
@@ -72,7 +73,8 @@ import zlib
 # 真机实测延迟（秒），乘以 --latency-scale 使用
 # --------------------------------------------------------------------------
 LAT_HD = 0.178          # /api/v1/liveview/get
-LAT_LOW = 0.126         # /api/v1/liveview/get_low
+LAT_LOW = 0.126          # /api/v1/liveview/get_low
+LAT_OSD = 0.020          # /api/v1/osd/get（真机静止时 13~50ms）
 LAT_DIRLIST = 0.030     # /cgi-bin/dirlist
 LAT_THUMB = 0.060       # /cgi-bin/thumb
 LAT_SHUTTER = 0.350     # 一次快门的机械耗时（S1 0.45s -> S2 -> S1 松开 1.0s，这里只做象征性等待）
@@ -362,6 +364,75 @@ def build_nv12_frame(low, tick, frame_no, bar_rgb, bar_width=0):
 # --------------------------------------------------------------------------
 # 相机状态（两个端口共用一份）
 # --------------------------------------------------------------------------
+# --------------------------------------------------------------------------
+# OSD 屏幕镜像：/api/v1/osd/get
+# --------------------------------------------------------------------------
+#
+# 真机守护进程把屏幕切成 80x40 的块，按块内容算哈希；客户端把**自己持有的**哈希
+# 发回来，服务端只回变化的块。块尺寸是编译期常量（osd.c 的 #define，不分机型），
+# 但帧宽随机型：new 档（NX1/NX500）720，old 档（NX300 等）800，帧高恒 480。
+#
+# 这个模拟器复刻同一套结构，画面用合成内容：只有**一个高亮块**会随每次请求移动，
+# 于是每次请求只产生 1~2 块变化 —— 正好用来验证 App 的增量路径是否真的在走增量。
+OSD_BLOCK_W = 80
+OSD_BLOCK_H = 40
+
+
+def osd_frame_width(model):
+    """old 档 800、new 档 720 —— 与守护进程 is_old_nx_model() 一致。"""
+    m = str(model or "").strip().upper()
+    return 800 if m in ("NX300", "NX300M", "NX2000", "NX3000") else 720
+
+
+class OsdScreen:
+    def __init__(self, model):
+        self.width = osd_frame_width(model)
+        self.height = 480
+        self.cols = self.width // OSD_BLOCK_W
+        self.rows = self.height // OSD_BLOCK_H
+        self.nblocks = self.cols * self.rows
+        self.lock = threading.Lock()
+        self.tick = 0
+        # 只用两种块模板，避免每次请求重算上兆字节
+        self._plain = bytes((0x18, 0x1C, 0x24, 0xFF)) * (OSD_BLOCK_W * OSD_BLOCK_H)
+        self._bright = bytes((0x4C, 0x8D, 0xFF, 0xFF)) * (OSD_BLOCK_W * OSD_BLOCK_H)
+        self._plain_hash = zlib.crc32(self._plain) & 0xFFFFFFFF
+        self._bright_hash = zlib.crc32(self._bright) & 0xFFFFFFFF
+
+    def snapshot(self):
+        """返回 [(hash, pixels)]（按块索引顺序）。每次调用高亮块前进一格。"""
+        with self.lock:
+            self.tick += 1
+            highlight = self.tick % self.nblocks
+        return [
+            (self._bright_hash, self._bright) if i == highlight
+            else (self._plain_hash, self._plain)
+            for i in range(self.nblocks)
+        ]
+
+    def respond(self, body):
+        """解析请求体的 hashs，组装只含变化块的响应。"""
+        client = {}
+        if body.startswith("hashs="):
+            hexs = body[6:]
+            count = min(len(hexs) // 8, self.nblocks)
+            for i in range(count):
+                try:
+                    client[i] = int(hexs[i * 8:(i + 1) * 8], 16)
+                except ValueError:
+                    pass
+        out = bytearray()
+        out += struct.pack(">HHHH", self.width, self.height, OSD_BLOCK_W, OSD_BLOCK_H)
+        for i, (h, px) in enumerate(self.snapshot()):
+            if client.get(i) == h:
+                continue
+            x = (i % self.cols) * OSD_BLOCK_W
+            y = (i // self.cols) * OSD_BLOCK_H
+            out += struct.pack(">HHI", x, y, h)
+            out += px
+        out += struct.pack(">HH", 0xFFFF, 0xFFFF)
+        return bytes(out)
+
 class MockState:
     def __init__(self, args):
         self.args = args
@@ -373,6 +444,8 @@ class MockState:
         self.keys_down = set()
         self.key_events = []
         self.shutter_log = []
+        # OSD 屏幕镜像（按 --model 决定 720 还是 800 宽）
+        self.osd = OsdScreen(args.model)
 
     # ---- 计数 / 延迟 ----
     def count_request(self):
@@ -539,6 +612,27 @@ class _BaseHandler(http.server.BaseHTTPRequestHandler):
     def do_HEAD(self):
         self.do_GET()
 
+    def do_POST(self):
+        parsed = urllib.parse.urlsplit(self.path)
+        try:
+            length = int(self.headers.get("Content-Length") or 0)
+        except ValueError:
+            length = 0
+        body = self.rfile.read(length).decode("utf-8", "replace") if length else ""
+        try:
+            self.route_post(parsed.path, body)
+        except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
+            self.close_connection = True
+        except Exception as exc:                       # noqa: BLE001
+            traceback.print_exc()
+            try:
+                self._json({"result": "error", "message": str(exc)}, 500)
+            except Exception:
+                pass
+
+    def route_post(self, path, body):
+        self._text("POST not supported", 405)
+
     def route(self, path, query):                       # pragma: no cover - 由子类实现
         raise NotImplementedError
 
@@ -554,6 +648,18 @@ def _int_param(query, name, default):
 # 端口 80：nx-remote-controller-daemon
 # --------------------------------------------------------------------------
 class DaemonHandler(_BaseHandler):
+    def route_post(self, path, body):
+        self.state.count_request()
+        self._log()
+
+        if path == "/api/v1/osd/get":
+            self.state.delay(LAT_OSD)
+            data = self.state.osd.respond(body)
+            self._send(200, data, "text/plain; charset=x-user-defined")
+            return
+
+        self._text("POST not supported", 405)
+
     def route(self, path, query):
         self.state.count_request()
         self._log()

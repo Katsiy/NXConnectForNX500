@@ -48,12 +48,35 @@ class LiveViewView @JvmOverloads constructor(
 
     companion object {
         private const val MAX_CONSECUTIVE_FAILURES = 6
-        private const val OSD_W = 720
-        private const val OSD_H = 480
+
+        /** 叠加层帧尺寸的默认值（NX500 规格）；实际值由机型档案覆盖。 */
+        private const val DEFAULT_OSD_W = 720
+        private const val DEFAULT_OSD_H = 480
     }
 
     @Volatile
     var lowQuality: Boolean = false
+
+    /**
+     * 叠加层（OSD）的帧尺寸，用于判断取景与叠加层是否同比例。
+     *
+     * NX1/NX500 是 720×480（3:2），NX300 是 800×480（5:3）。
+     * 由 RemoteActivity 按机型档案设置；不设则按 NX500 处理。
+     * 二者比例不同时叠加会被禁用 —— 宁可不出叠加，也不要把画面拉歪。
+     */
+    var osdFrameW: Int = DEFAULT_OSD_W
+        set(value) {
+            if (value <= 0 || value == field) return
+            field = value
+            updateViewport()
+        }
+
+    var osdFrameH: Int = DEFAULT_OSD_H
+        set(value) {
+            if (value <= 0 || value == field) return
+            field = value
+            updateViewport()
+        }
 
     /** 请求起点的最小间隔，是限速上限而非保证帧率；已有请求从不因调速而取消。 */
     @Volatile
@@ -218,8 +241,8 @@ class LiveViewView @JvmOverloads constructor(
     }
 
     private fun updateViewport() {
-        val sourceW = bitmap?.width ?: OSD_W
-        val sourceH = bitmap?.height ?: OSD_H
+        val sourceW = bitmap?.width ?: osdFrameW
+        val sourceH = bitmap?.height ?: osdFrameH
         val availableW = width - paddingLeft - paddingRight
         val availableH = height - paddingTop - paddingBottom
         if (availableW <= 0 || availableH <= 0) {
@@ -233,7 +256,7 @@ class LiveViewView @JvmOverloads constructor(
             destination.set(left, top, left + w, top + h)
         }
         // 附件还提到 720×404 等取景尺寸，其与 OSD 的坐标关系未验证，不能擅自拉伸。
-        val compatible = sourceW.toLong() * OSD_H == sourceH.toLong() * OSD_W
+        val compatible = sourceW.toLong() * osdFrameH == sourceH.toLong() * osdFrameW
         onViewportChanged?.invoke(RectF(destination), compatible)
     }
 

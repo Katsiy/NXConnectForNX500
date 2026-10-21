@@ -65,9 +65,19 @@ class NxCamera(
 
     // ---------------------------------------------------------------- 元信息
 
+    /**
+     * 当前相机的机型档案（OSD 帧尺寸、EV keysym、可用模式等）。
+     *
+     * 由 [info] 成功返回后按 `model` 字段更新；未读过信息时按 NX500 规格。
+     * UI 用它决定：叠加层比例、`LiveViewView.osdFrameW/H`、按键面板内容。
+     */
+    @Volatile
+    var profile: CameraProfile = CameraProfile.NX500
+        private set
+
     suspend fun info(): CameraInfo {
         val text = NxHttp.getText("$baseUrl/api/v1/camera/info", 3_000, binder)
-        return parseInfo(text)
+        return parseInfo(text).also { profile = CameraProfile.of(it.model) }
     }
 
     suspend fun status(): CameraStatus {
@@ -285,15 +295,32 @@ class NxCamera(
     }
 
     /**
-     * OSD 是唯一的 POST 接口。hashs 必须是客户端当前持有的 108 个服务端哈希。
-     * 默认值保留旧的无参调用兼容性，仅适合首帧；连续轮询必须传入更新后的哈希。
+     * OSD 是唯一的 POST 接口。
+     *
+     * `hashs` 是客户端当前持有的各块哈希，**长度必须是 120 组 × 8 位**（见下）。
+     * 默认值保留无参调用的兼容性，只适合首帧；连续轮询必须传入更新后的哈希。
      * 空体表示暂不可用，由 UI 重试；这里不调用解析器。
+     *
+     * ## 为什么固定 120 组而不是按机型
+     *
+     * 守护进程的 `osd_http_send()` 用 `int last_hashs[NUM_BLOCKS]`（**120**，栈上定长）
+     * 接收，并按请求体长度 `(body.len - 6) / 8` 逐项写入：
+     *
+     * - 发**少于** 120 组 → 超出部分保留未初始化的栈值，比较必然不等 → 那些块每次重发
+     * - 发**多于** 120 组 → 写越界，栈溢出
+     * - **正好 120 组** → 对 108 块的 NX500，多出的 12 组写进数组内且循环只用到前 108 项，安全
+     *
+     * 所以 120 是唯一与机型无关的安全值。
      */
     suspend fun osd(
-        hashs: String = NxOsd.buildHashsParam(IntArray(108), 108),
+        hashs: String = NxOsd.buildHashsParam(IntArray(NxOsd.MAX_BLOCKS), NxOsd.MAX_BLOCKS),
     ): ByteArray = osdRequestMutex.withLock {
-        require(hashs.length == 108 * 8 && hashs.all { it in '0'..'9' || it in 'a'..'f' }) {
-            "OSD hashs 必须是 108 组 8 位小写十六进制哈希"
+        require(
+            hashs.length == NxOsd.MAX_BLOCKS * 8 &&
+                hashs.all { it in '0'..'9' || it in 'a'..'f' },
+        ) {
+            "OSD hashs 必须是 ${NxOsd.MAX_BLOCKS} 组 8 位小写十六进制哈希" +
+                "（收到 ${hashs.length} 字符）"
         }
         NxHttp.postFormBytesStrict(
             "$baseUrl/api/v1/osd/get",

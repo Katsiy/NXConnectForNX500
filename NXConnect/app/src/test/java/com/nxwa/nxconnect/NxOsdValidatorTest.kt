@@ -33,8 +33,8 @@ import java.io.ByteArrayOutputStream
  */
 class NxOsdValidatorTest {
 
-    private val fw = NxOsdValidator.FRAME_W
-    private val fh = NxOsdValidator.FRAME_H
+    private val fw = 720
+    private val fh = 480
     private val bw = NxOsdValidator.BLOCK_W
     private val bh = NxOsdValidator.BLOCK_H
 
@@ -46,9 +46,9 @@ class NxOsdValidatorTest {
     fun `记录长度等于 8 字节头加块像素`() {
         assertEquals(12_808, NxOsdValidator.RECORD_BYTES)
         assertEquals(80 * 40 * 4, NxOsdValidator.BLOCK_BYTES)
-        assertEquals(9, NxOsdValidator.COLUMNS)
-        assertEquals(12, NxOsdValidator.ROWS)
-        assertEquals(108, NxOsdValidator.BLOCK_COUNT)
+        assertEquals(9, 720 / NxOsdValidator.BLOCK_W)
+        assertEquals(12, 480 / NxOsdValidator.BLOCK_H)
+        assertEquals(108, NxOsdValidator.blockCountFor(720, 480))
     }
 
     @Test
@@ -114,20 +114,32 @@ class NxOsdValidatorTest {
         }
     }
 
+    /**
+     * 帧尺寸**不再要求等于 720×480** —— 守护进程按机型给 720 或 800 宽，
+     * 所以校验改成"能被块整除 + 块数不超上限"。640×480 → 8×12 = 96 块，是合法的。
+     */
     @Test
-    fun `帧头尺寸不符被拒`() {
-        // 正确帧头 720/480/80/40；把帧宽改成 640
+    fun `其它可整除的帧尺寸被接受`() {
+        val raw = NxOsd.buildFrame(640, 480, 80, 40, emptyList())
+        val frame = NxOsdValidator.parseStrict(raw)
+        assertEquals(640, frame.frameW)
+        assertEquals(96, frame.blockCount)
+    }
+
+    @Test
+    fun `帧宽不能被块宽整除时被拒`() {
+        // 700 % 80 = 60，不整除
         val bad = byteArrayOf(
-            0x02, 0x80.toByte(),              // 640（应为 720）
-            0x01, 0xE0.toByte(),     // 480
-            0x00, 0x50,              // 80
-            0x00, 0x28,              // 40
+            0x02, 0xBC.toByte(),      // 700
+            0x01, 0xE0.toByte(),      // 480
+            0x00, 0x50,               // 80
+            0x00, 0x28,               // 40
             0xFF.toByte(), 0xFF.toByte(), 0xFF.toByte(), 0xFF.toByte(),
         )
         val e = assertThrows(NxOsd.OsdParseException::class.java) {
             NxOsdValidator.parseStrict(bad)
         }
-        assertTrue(e.message!!.contains("帧头"))
+        assertTrue("应提示不能整除：${e.message}", e.message!!.contains("整除"))
     }
 
     @Test
@@ -201,23 +213,23 @@ class NxOsdValidatorTest {
     @Test
     fun `validatePosition 的边界值`() {
         // 合法：右下角最后一个块的起点
-        NxOsdValidator.validatePosition(640, 440)
+        NxOsdValidator.validatePosition(640, 440, 720, 480)
         // 合法：左上角
-        NxOsdValidator.validatePosition(0, 0)
+        NxOsdValidator.validatePosition(0, 0, 720, 480)
         // 非法：刚好超出
-        assertThrows(NxOsd.OsdParseException::class.java) { NxOsdValidator.validatePosition(720, 0) }
-        assertThrows(NxOsd.OsdParseException::class.java) { NxOsdValidator.validatePosition(0, 480) }
-        assertThrows(NxOsd.OsdParseException::class.java) { NxOsdValidator.validatePosition(-80, 0) }
+        assertThrows(NxOsd.OsdParseException::class.java) { NxOsdValidator.validatePosition(720, 0, 720, 480) }
+        assertThrows(NxOsd.OsdParseException::class.java) { NxOsdValidator.validatePosition(0, 480, 720, 480) }
+        assertThrows(NxOsd.OsdParseException::class.java) { NxOsdValidator.validatePosition(-80, 0, 720, 480) }
         // 非法：未对齐
-        assertThrows(NxOsd.OsdParseException::class.java) { NxOsdValidator.validatePosition(1, 0) }
-        assertThrows(NxOsd.OsdParseException::class.java) { NxOsdValidator.validatePosition(0, 1) }
+        assertThrows(NxOsd.OsdParseException::class.java) { NxOsdValidator.validatePosition(1, 0, 720, 480) }
+        assertThrows(NxOsd.OsdParseException::class.java) { NxOsdValidator.validatePosition(0, 1, 720, 480) }
     }
 
     @Test
     fun `接缝上的坐标判定`() {
         // 640 + 80 = 720，正好到边界：640 合法、720 非法（块会超出帧）
-        NxOsdValidator.validatePosition(640, 440)
-        assertThrows(NxOsd.OsdParseException::class.java) { NxOsdValidator.validatePosition(640, 480) }
+        NxOsdValidator.validatePosition(640, 440, 720, 480)
+        assertThrows(NxOsd.OsdParseException::class.java) { NxOsdValidator.validatePosition(640, 480, 720, 480) }
     }
 
     // ------------------------------------------------------------------
@@ -260,5 +272,70 @@ class NxOsdValidatorTest {
         out.write(ByteArray(NxOsdValidator.BLOCK_BYTES))   // 12800 字节像素
         u16(0xFFFF); u16(0xFFFF)
         return out.toByteArray()
+    }
+
+    // ------------------------------------------------------------------
+    // 多机型：old 档 800×480（NX300 等）
+    // ------------------------------------------------------------------
+
+    @Test
+    fun `800x480 的帧头被接受且块数为 120`() {
+        val blocks = (0 until 120).map { i ->
+            NxOsd.solidBlock((i % 10) * bw, (i / 10) * bh, i + 1, bw, bh, i, i, i)
+        }
+        val raw = NxOsd.buildFrame(800, 480, bw, bh, blocks)
+        assertEquals(1_536_972, raw.size)
+        assertEquals(120, NxOsdValidator.blockCountFor(800, 480))
+
+        val frame = NxOsdValidator.parseStrict(raw)
+        assertEquals(800, frame.frameW)
+        assertEquals(480, frame.frameH)
+        assertEquals(120, frame.blockCount)
+        assertEquals(10, frame.columns)
+        assertEquals(12, frame.rows)
+    }
+
+    @Test
+    fun `800x480 的单块坐标按新列数算索引`() {
+        // NX300 是 10 列：x=720 是第 9 列（最后一列），索引 = row*10 + 9
+        val raw = NxOsd.buildFrame(
+            800, 480, bw, bh,
+            listOf(NxOsd.solidBlock(720, 440, 0x77, bw, bh, 9, 9, 9)),
+        )
+        val frame = NxOsdValidator.parseStrict(raw)
+        assertEquals(setOf(11 * 10 + 9), frame.blocks.keys)
+    }
+
+    @Test
+    fun `块总数超过 120 被拒`() {
+        // 960×480 → 12×12 = 144 块，超过守护进程的数组上限 120
+        val raw = NxOsd.buildFrame(960, 480, bw, bh, emptyList())
+        val e = assertThrows(NxOsd.OsdParseException::class.java) {
+            NxOsdValidator.parseStrict(raw)
+        }
+        assertTrue("应提示块总数超限：${e.message}", e.message!!.contains("块总数"))
+    }
+
+    @Test
+    fun `块尺寸不是 80x40 被拒`() {
+        // 块尺寸是守护进程的编译期常量，换块尺寸意味着协议变了，应当明确报错
+        val raw = NxOsd.buildFrame(720, 480, 60, 40, emptyList())
+        val e = assertThrows(NxOsd.OsdParseException::class.java) {
+            NxOsdValidator.parseStrict(raw)
+        }
+        assertTrue("应提示块尺寸不符：${e.message}", e.message!!.contains("块尺寸"))
+    }
+
+    @Test
+    fun `旧档与新高档的坐标校验各自独立`() {
+        // 720×480 下 x=720 越界；800×480 下同一个 x 合法
+        assertThrows(NxOsd.OsdParseException::class.java) {
+            NxOsdValidator.validatePosition(720, 0, 720, 480)
+        }
+        NxOsdValidator.validatePosition(720, 0, 800, 480)
+        // 800 宽下再往右就越界
+        assertThrows(NxOsd.OsdParseException::class.java) {
+            NxOsdValidator.validatePosition(800, 0, 800, 480)
+        }
     }
 }

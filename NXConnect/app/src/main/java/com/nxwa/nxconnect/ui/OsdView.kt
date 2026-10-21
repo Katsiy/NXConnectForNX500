@@ -53,12 +53,10 @@ class OsdView @JvmOverloads constructor(
     }
 
     companion object {
-        private const val FRAME_W = NxOsd.EXPECTED_FRAME_W
-        private const val FRAME_H = NxOsd.EXPECTED_FRAME_H
-        private const val BLOCK_W = NxOsd.EXPECTED_BLOCK_W
-        private const val BLOCK_H = NxOsd.EXPECTED_BLOCK_H
-        private const val BLOCK_COUNT = (FRAME_W / BLOCK_W) * (FRAME_H / BLOCK_H)
-        private const val BLOCK_BYTES = BLOCK_W * BLOCK_H * 4
+        // 块尺寸是协议常量（守护进程 osd.c 的 #define，不分机型）
+        private const val BLOCK_W = NxOsdValidator.BLOCK_W
+        private const val BLOCK_H = NxOsdValidator.BLOCK_H
+        private const val BLOCK_BYTES = NxOsdValidator.BLOCK_BYTES
 
         /** 0 字节 HTTP 体由轮询器处理；这里仍严格复用已有解析器和校验器。 */
         @Throws(NxOsd.OsdParseException::class)
@@ -91,11 +89,22 @@ class OsdView @JvmOverloads constructor(
         }
     }
 
-    /** 固定 720×480×4，保存原样 RGBA（包括原 Alpha）。 */
-    private val rgba = NxOsd.newCanvas(FRAME_W, FRAME_H)
-    private val hashes = IntArray(BLOCK_COUNT)
-    private val received = BooleanArray(BLOCK_COUNT)
-    private val opaquePixels = IntArray(BLOCK_COUNT)
+    /**
+     * 帧尺寸**以协议帧头为准**，不能写死：
+     * NX1/NX500 是 720×480（9×12 = 108 块），NX300 是 800×480（10×12 = 120 块）。
+     * 首帧到达时才按真实尺寸分配画布。
+     */
+    private var frameW = NxOsd.EXPECTED_FRAME_W
+    private var frameH = NxOsd.EXPECTED_FRAME_H
+
+    /** 整帧 RGBA 画布；长度 = frameW*frameH*4，随帧头变化时重分配。 */
+    private var rgba = ByteArray(0)
+
+    // 这三张表按**协议上限** 120 分配，避免机型切换时重新分配；
+    // 只使用前 [blockCount] 项（NX500 用 108 项）。
+    private val hashes = IntArray(NxOsd.MAX_BLOCKS)
+    private val received = BooleanArray(NxOsd.MAX_BLOCKS)
+    private val opaquePixels = IntArray(NxOsd.MAX_BLOCKS)
     private var bitmap: Bitmap? = null
     private var bitmapCanvas: Canvas? = null
     private var blockBitmap: Bitmap? = null
@@ -115,8 +124,15 @@ class OsdView @JvmOverloads constructor(
         isFocusable = false
     }
 
+    /** 当前机型一帧的块数：108（720×480）或 120（800×480） */
+    private val blockCount: Int get() = (frameW / BLOCK_W) * (frameH / BLOCK_H)
+
     val hasCompleteFrame: Boolean
-        get() { checkMainThread(); return received.all { it } }
+        get() {
+            checkMainThread()
+            // 只检查本机型实际存在的块；120 项数组在多出来的位置保持 false
+            return (0 until blockCount).all { received[it] }
+        }
 
     val hasVisibleContent: Boolean
         get() { checkMainThread(); return opaquePixels.any { it > 0 } }
@@ -127,21 +143,23 @@ class OsdView @JvmOverloads constructor(
         require(rect.left.isFinite() && rect.top.isFinite() &&
             rect.right.isFinite() && rect.bottom.isFinite()) { "显示矩形包含非有限值" }
         if (compatible && !rect.isEmpty) {
-            require(abs(rect.width() / FRAME_W - rect.height() / FRAME_H) < 0.001f) {
-                "OSD 显示矩形必须保持 3:2"
+            // 宽高比按**当前机型的帧尺寸**校验，不再写死 3:2
+            // （NX500 是 3:2，NX300 的 800×480 是 5:3）
+            require(abs(rect.width() / frameW - rect.height() / frameH) < 0.001f) {
+                "OSD 显示矩形必须与帧尺寸 ${frameW}×$frameH 同比例"
             }
         }
         if (destination == rect && viewportCompatible == compatible) return
         destination.set(rect)
         viewportCompatible = compatible
-        imageScale = if (compatible && !rect.isEmpty) rect.width() / FRAME_W else 0f
+        imageScale = if (compatible && !rect.isEmpty) rect.width() / frameW else 0f
         invalidate() // 几何或可见性改变必须清除旧位置。
     }
 
     /** 只在新会话清零；空体、零块和可重试网络错误绝不能重置增量基线。 */
     fun reset() {
         checkMainThread()
-        rgba.fill(0)
+        if (rgba.isNotEmpty()) rgba.fill(0)
         hashes.fill(0)
         received.fill(false)
         opaquePixels.fill(0)
@@ -151,7 +169,11 @@ class OsdView @JvmOverloads constructor(
 
     fun hashsParam(): String {
         checkMainThread()
-        return NxOsd.buildHashsParam(hashes, BLOCK_COUNT)
+        // ★ 恒定发**协议上限** 120 个哈希，而不是本机型的块数。
+        //   守护进程的 `last_hashs[NUM_BLOCKS]`（120）按请求体长度循环写入：
+        //   发少了，超出部分会拿未初始化的栈值比较 → 那些块每次都被重发（浪费）；
+        //   发多了，会写越界（栈溢出）。所以 120 是唯一安全的通用值，也与机型无关。
+        return NxOsd.buildHashsParam(hashes, NxOsd.MAX_BLOCKS)
     }
 
     /** 保留旧调用入口；轮询器应优先使用后台 prepareFrame + 主线程 submitPrepared。 */
@@ -173,6 +195,7 @@ class OsdView @JvmOverloads constructor(
             check(prepared.opaqueCounts.getValue(index) in 0..BLOCK_W * BLOCK_H)
         }
         if (frame.blocks.isEmpty()) return
+        ensureFrame(frame.frameW, frame.frameH)
         ensureBitmaps()
         val tile = checkNotNull(blockBitmap)
         val target = checkNotNull(bitmapCanvas)
@@ -190,9 +213,29 @@ class OsdView @JvmOverloads constructor(
         for (block in frame.blocks.values) invalidateBlock(block.x, block.y)
     }
 
+    /**
+     * 帧尺寸变化时重建画布。
+     *
+     * 正常情况下整个会话只有一种尺寸；这里仍处理变化，是为了"换相机/换机型"时不崩：
+     * 块索引在有意义的尺寸变化后不再对应，所以哈希与已完成标记一起清空。
+     */
+    private fun ensureFrame(w: Int, h: Int) {
+        if (w == frameW && h == frameH && rgba.isNotEmpty()) return
+        frameW = w
+        frameH = h
+        rgba = NxOsd.newCanvas(w, h)
+        hashes.fill(0)
+        received.fill(false)
+        opaquePixels.fill(0)
+        // 整帧位图尺寸也变了，必须重建；旧的可能仍被 display list 引用，交给 GC。
+        bitmapCanvas = null
+        bitmap = null
+        imageScale = if (viewportCompatible && !destination.isEmpty) destination.width() / w else 0f
+    }
+
     private fun ensureBitmaps() {
         if (bitmap == null) {
-            bitmap = alphaBitmap(FRAME_W, FRAME_H).also { it.eraseColor(Color.TRANSPARENT) }
+            bitmap = alphaBitmap(frameW, frameH).also { it.eraseColor(Color.TRANSPARENT) }
             bitmapCanvas = Canvas(checkNotNull(bitmap))
         }
         if (blockBitmap == null) {
@@ -216,8 +259,8 @@ class OsdView @JvmOverloads constructor(
         // 外扩一个源像素，覆盖双线性过滤的影响；向外取整，避免缩放漏线。
         val left = floor((destination.left + maxOf(0, x - 1) * imageScale).toDouble()).toInt()
         val top = floor((destination.top + maxOf(0, y - 1) * imageScale).toDouble()).toInt()
-        val right = ceil((destination.left + minOf(FRAME_W, x + BLOCK_W + 1) * imageScale).toDouble()).toInt()
-        val bottom = ceil((destination.top + minOf(FRAME_H, y + BLOCK_H + 1) * imageScale).toDouble()).toInt()
+        val right = ceil((destination.left + minOf(frameW, x + BLOCK_W + 1) * imageScale).toDouble()).toInt()
+        val bottom = ceil((destination.top + minOf(frameH, y + BLOCK_H + 1) * imageScale).toDouble()).toInt()
         val l = maxOf(0, left)
         val t = maxOf(0, top)
         val r = minOf(width, right)
@@ -241,7 +284,7 @@ class OsdView @JvmOverloads constructor(
         bitmap = null // 可能仍被硬件 display list 引用，交给 GC。
         blockBitmap?.recycle() // 临时块只用于同步的软件 Canvas。
         blockBitmap = null
-        rgba.fill(0)
+        if (rgba.isNotEmpty()) rgba.fill(0)
         hashes.fill(0)
         received.fill(false)
         opaquePixels.fill(0)
