@@ -92,8 +92,8 @@ App 把这张画面叠加在实时取景之上，于是你能一边看构图、�
 |---|---|
 | **拿不到电量百分比** | 硬件不提供。`st bat get_soc` 返回 `ret=-1`，sysfs 只有一个无意义的 `capacity=1330` |
 | **拿不到镜头信息** | MCB 总线被相机自身 App 占用，`st cap lens` 报 `Cann't execute capture command over MCB!` |
-| **无法直接读写曝光三要素** | 没有找到可用通路：`capdtm` 的 `ADJUST*` 参数名只读到 1 个，`setusr`/`mcb` 无输出<br>⚠️ **但这条正在复核**：Metol 用的是 `USERDATA_*` 命名空间，我们从没试过；已备好 `tools/camera/probe_capdtm_userdata.py`，等真机结果 |
-| **所以改参数目前只能靠屏幕镜像** | 这是上面那条的直接后果 —— App 无法知道"现在是 ISO 800"，只能把相机屏幕投出来自己看 |
+| **App 目前靠屏幕镜像改参数** | 相机其实支持直读直写（见下条），但 App 走的是 HTTP，`st` 命令要通过 telnet 才能用 |
+| ~~无法读写曝光参数~~ → **实际可以** | 2026-10-22 实测推翻：`st cap capdtm getusr ISO` / `getvar TV` / `setvar EVC 0x0e 4` 全部可用。之前的"只能读 1 个参数"是**参数名带了 `USERDATA_` 前缀**导致的误判。参数表与编码说明见 [docs/capdtm-reference.md](docs/capdtm-reference.md) |
 | **取景分辨率固定**（NX1/NX500 720×480，NX300 800×480） | 相机只提供两档（`/liveview/get` 与 `/liveview/get_low`），没有第三档 |
 | **相机端 HTTP 吞吐约 4.5~5 请求/秒** | 相机是单核，相机自身 App 常驻占 59% CPU。取景与屏幕镜像同时开时会分掉这个预算 |
 

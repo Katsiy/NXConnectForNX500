@@ -41,29 +41,32 @@ import socket
 import sys
 import time
 
-# Metol / NX-WA 的 capdtm.conf 里列出的参数名（见 scripts/nx-rc/capdtm/capdtm.conf）
+# ★ 关键：`getusr` 只认**去掉 USERDATA_ 前缀的短名**。
+#   带前缀（USERDATA_ISO）会返回 Invalid argument[2]，看起来像参数不存在。
+#   这一点浪费了我们很久：见 docs/capdtm-reference.md。
 USERDATA_NAMES = [
-    "USERDATA_ISO",
-    "USERDATA_METERING",
-    "USERDATA_WB",
-    "USERDATA_IMAGEQUALITY",
-    "USERDATA_IMAGESIZE",
-    "USERDATA_IMAGEASPECTRATIO",
-    "USERDATA_PW",
-    "USERDATA_COLORSPACE",
-    "USERDATA_AFMODE",
-    "USERDATA_DRIVE",
+    "ISO",
+    "METERING",
+    "WB",
+    "IMAGEQUALITY",
+    "IMAGESIZE",
+    "IMAGEASPECTRATIO",
+    "PW",
+    "COLORSPACE",
+    "AFMODE",
+    "DRIVE",
 ]
 
-# 额外试探：曝光相关（Metol 没列，但我们最关心快门/光圈/补偿）
+# 曝光三要素走 getvar 而不是 getusr（见 docs/capdtm-reference.md）
 EXTRA_NAMES = [
-    "USERDATA_SHUTTERSPEED",
-    "USERDATA_APERTURE",
-    "USERDATA_EV",
-    "USERDATA_EXPOSURE",
-    "USERDATA_EXPOSURECOMPENSATION",
-    "USERDATA_ADJUSTSHUTTERTYPE",   # 已知可读的那个，用作对照
+    "ADJUSTSHUTTERTYPE",   # 已知可读，用作对照组
+    "SHOOTINGMODE",
+    "AFAREA",
+    "OIS",
+    "FLASHMODE",
 ]
+
+# 曝光变量：用 getvar 读，不在这里测（见 probe_capdtm_vars.py）
 
 IAC = 255
 PROMPT = re.compile(r"(\[[^\]]*\]\s*)?#\s*$", re.M)
@@ -220,11 +223,11 @@ def main() -> int:
             # 选一个与当前值不同的候选值
             alt = None
             if candidate == "USERDATA_ISO":
-                alt = "ISO_400" if cur != "ISO_400" else "ISO_100"
+                alt = "0x00050003"   # ISO 家族的值 ID（ISO_100 = 0x00050001）
             elif candidate == "USERDATA_METERING":
-                alt = "METERING_SPOT" if cur != "METERING_SPOT" else "METERING_MULTI"
+                alt = "0x00000002"   # METERING 值序号
             elif candidate == "USERDATA_WB":
-                alt = "WB_DAYLIGHT" if cur != "WB_DAYLIGHT" else "WB_AUTO"
+                alt = "0x00060001"   # WB 家族的值 ID
 
             print(f"  参数 {candidate} 当前 = {cur}，尝试写入 {alt}")
             print("  写入原始输出:", (shell.run(f"st cap capdtm setusr {candidate} {alt}") or "(无输出)")[:120])

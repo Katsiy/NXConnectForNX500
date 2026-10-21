@@ -342,41 +342,32 @@ thumb error: source not found
 GET /cgi-bin/capdtm-api?action=list
 ```
 
-> ⚠️ **2026-10-22 修正：下面"所有字段都返回空"的结论可能不成立。**
+> ✅ **2026-10-22 已实测确认：参数可读可写，"只能读 1 个参数"是错的。**
 >
-> 那个 CGI 来自 Metol（旧称 NX-WA），它的解析代码是：
+> 错因很具体：`usrlist` 里参数**叫** `USERDATA_*`，但 `getusr` 只认
+> **去掉 `USERDATA_` 前缀的短名**。带前缀会返回 `Invalid argument[2]=USERDATA_ISO`，
+> 看起来就像"参数不存在"。
 >
 > ```sh
-> cur=$($ST cap capdtm getusr "$cname" | head -1)
-> val=$(printf '%s' "$cur" | awk -F'|' '{print $3}')      # ← 假设竖线分隔、值在第 3 列
+> st cap capdtm usrlist              # 129 个 usr 参数
+> st cap capdtm varlist              # 66 个变量（含 AV/TV/SV/EVC/BULBTIME/S2PUSHED）
+> st cap capdtm getusr ISO           # -> UserData is ISO_100 (0x50001)
+> st cap capdtm getvar TV            # -> Variable Data is 0x00000000_0000ffb0
+> st cap capdtm setvar EVC 0x0e 4    # -> VariableData is set（实测生效且可还原）
 > ```
 >
-> 而相机实际输出是 `UserData is ADJUSTSHUTTERTYPE_MECHA (0x750000)` —— **没有竖线**，
-> `awk -F'|' '{print $3}'` 必然取到空串。
+> 注意 `setusr` 的**第二个参数也必须用 ID/十进制**，写名字（`ISO_400`）会被拒。
 >
-> **所以"全空"很可能只是该脚本的解析 bug，而不是参数读不到。**
-> 我们当初据此得出"capdtm 只能读 1 个参数"，很可能是个误判。
+> **完整参数表、实测结果与未决的 AV/TV 编码问题见 [capdtm-reference.md](capdtm-reference.md)。**
 >
-> 验证脚本已写好：`python tools/camera/probe_capdtm_userdata.py <相机IP>`
-> 它直接打印 `st cap capdtm getusr USERDATA_*` 的**原始输出**，不做任何假设性解析。
-> **在拿到真机结果之前，不要把"参数不可读"当定论。**
-
-⚠️ **实测真机的 capdtm-api 输出**（在修正之前记录，原因见上）：
-
-```json
-{"ok":true,"params":{"USERDATA_ISO":"","USERDATA_METERING":"","USERDATA_WB":"","USERDATA_IMAGEQUALITY":"","USERDATA_IMAGESIZE":"","USERDATA_IMAGEASPECTRATIO":"","USERDATA_PW":"","USERDATA_COLORSPACE":"","USERDATA_AFMODE":"","USERDATA_DRIVE":""}}
-```
-
-Metol 的 `capdtm.conf` 里列出的参数名（供探测脚本参考）：
-
-```
-USERDATA_ISO  USERDATA_METERING  USERDATA_WB  USERDATA_IMAGEQUALITY
-USERDATA_IMAGESIZE  USERDATA_IMAGEASPECTRATIO  USERDATA_PW
-USERDATA_COLORSPACE  USERDATA_AFMODE  USERDATA_DRIVE
-```
-
-注意这份表里**没有快门速度 / 光圈 / 曝光补偿** —— 即使能读，也只是 ISO、白平衡、
-测光这类"档位型"参数。曝光三要素仍要另找通路。
+> ⚠️ 下面这段是修正前的记录，保留以说明当时的误判：
+>
+> ```json
+> {"ok":true,"params":{"USERDATA_ISO":"", ... 全空 ... }}
+> ```
+>
+> 那个 CGI 的解析是 `awk -F'|' '{print $3}'`，而相机输出 `UserData is ISO_100 (0x50001)`
+> 没有竖线 —— 加上参数名带前缀，两个原因叠加导致全空。
 
 ### 5.4 目录页面（mongoose 目录浏览）
 
