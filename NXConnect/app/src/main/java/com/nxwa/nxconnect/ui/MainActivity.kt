@@ -26,6 +26,8 @@ import androidx.lifecycle.lifecycleScope
 import com.nxwa.nxconnect.NxApp
 import com.nxwa.nxconnect.R
 import com.nxwa.nxconnect.data.CameraOverview
+import com.nxwa.nxconnect.net.CapdtmLabels
+import com.nxwa.nxconnect.net.NxCapdtmReader
 import com.nxwa.nxconnect.data.NxNetworkFacts
 import com.nxwa.nxconnect.databinding.ActivityMainBinding
 import com.nxwa.nxconnect.net.CameraDiscovery
@@ -179,6 +181,12 @@ class MainActivity : AppCompatActivity() {
      * @param autoSyncTime 连接后自动同步一次相机时间（只在偏差 > 60 秒时才真的写）。
      *   相机时钟实测停在 2015 年，不同步的话照片时间戳全是错的。
      */
+    /** 直读拍摄参数用的 telnet 连接（可选能力，拿不到就一直是 null） */
+    private var capdtmReader: NxCapdtmReader? = null
+
+    /** 参数行是否已追加过，避免重复 */
+    private var capdtmRowsShown = false
+
     private fun loadOverview(autoSyncTime: Boolean) {
         val cam = NxApp.camera ?: return
         val ip = NxApp.cameraIp ?: return
@@ -193,6 +201,10 @@ class MainActivity : AppCompatActivity() {
                 NxApp.log("相机时间偏差 ${overview.timeDriftText}，自动同步")
                 syncCameraTime(manual = false)
             }
+
+            // telnet 可用时再补一层"直读参数"，失败静默
+            capdtmRowsShown = false
+            if (overview.shellAvailable) loadCapdtmParams()
         }
     }
 
@@ -223,31 +235,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         b.infoTable.removeAllViews()
-        for ((label, value) in rows) {
-            val row = android.widget.TableRow(this).apply {
-                layoutParams = android.widget.TableLayout.LayoutParams(
-                    android.widget.TableLayout.LayoutParams.MATCH_PARENT,
-                    android.widget.TableLayout.LayoutParams.WRAP_CONTENT,
-                )
-            }
-            row.addView(
-                TextView(this).apply {
-                    text = label
-                    setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_BodySmall)
-                    setTextColor(ContextCompat.getColor(this@MainActivity, R.color.nx_on_surface_variant))
-                    setPadding(0, dp(7), dp(12), dp(7))
-                },
-            )
-            row.addView(
-                TextView(this).apply {
-                    text = value
-                    setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_BodyMedium)
-                    setTextColor(ContextCompat.getColor(this@MainActivity, R.color.nx_on_surface))
-                    setPadding(0, dp(7), 0, dp(7))
-                },
-            )
-            b.infoTable.addView(row)
-        }
+        for ((label, value) in rows) addInfoRow(label, value)
 
         // 说明文字统一用浅灰，不再用醒目的警告色
         b.infoNotes.text = o.notes.joinToString("\n") { "· $it" }
@@ -257,6 +245,69 @@ class MainActivity : AppCompatActivity() {
         } else {
             b.btnSyncTime.setText(R.string.sync_time)
         }
+    }
+
+    /** 往信息表里追加一行「标签 → 值」 */
+    private fun addInfoRow(label: String, value: String) {
+        val row = android.widget.TableRow(this).apply {
+            layoutParams = android.widget.TableLayout.LayoutParams(
+                android.widget.TableLayout.LayoutParams.MATCH_PARENT,
+                android.widget.TableLayout.LayoutParams.WRAP_CONTENT,
+            )
+        }
+        row.addView(
+            TextView(this).apply {
+                text = label
+                setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_BodySmall)
+                setTextColor(ContextCompat.getColor(this@MainActivity, R.color.nx_on_surface_variant))
+                setPadding(0, dp(7), dp(12), dp(7))
+            },
+        )
+        row.addView(
+            TextView(this).apply {
+                text = value
+                setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_BodyMedium)
+                setTextColor(ContextCompat.getColor(this@MainActivity, R.color.nx_on_surface))
+                setPadding(0, dp(7), 0, dp(7))
+            },
+        )
+        b.infoTable.addView(row)
+    }
+
+    /**
+     * 通过 telnet 直读拍摄参数并追加到信息表。
+     *
+     * 这是**可选能力**：原厂固件没有 telnet，只有装了相机端组件（NX-KS 等）才有。
+     * 拿不到就静默跳过，界面上不会出现任何错误提示 —— 少显示几行，而不是报错。
+     *
+     * 读到的值是相机给的**确切枚举名**（`ISO_100` / `WB_AUTO` …），不需要换算，
+     * 这是它比"镜像屏幕自己看"可靠的地方。
+     */
+    private fun loadCapdtmParams() {
+        val ip = NxApp.cameraIp ?: return
+        val reader = capdtmReader ?: NxCapdtmReader(ip).also { capdtmReader = it }
+        lifecycleScope.launch {
+            val params = reader.read() ?: return@launch
+            if (params.isEmpty) return@launch
+            // 已经渲染过一轮，这里只**追加**，不重建整张表（避免闪烁）
+            if (capdtmRowsShown) return@launch
+            capdtmRowsShown = true
+            params.iso?.let { addInfoRow("ISO", CapdtmLabels.iso(it)) }
+            params.whiteBalance?.let { addInfoRow("白平衡", CapdtmLabels.whiteBalance(it)) }
+            params.metering?.let { addInfoRow("测光", CapdtmLabels.metering(it)) }
+            params.driveMode?.let { addInfoRow("驱动", CapdtmLabels.drive(it)) }
+            params.imageQuality?.let { addInfoRow("画质", CapdtmLabels.imageQuality(it)) }
+            params.afMode?.let { addInfoRow("对焦模式", CapdtmLabels.afMode(it)) }
+            params.shootingMode?.let { addInfoRow("曝光模式", CapdtmLabels.shootingMode(it)) }
+            NxApp.log("capdtm 直读成功：${params.summaryLine()}")
+        }
+    }
+
+    /** 页面销毁时断开 telnet，避免残留连接占着相机端的 inetd 槽位 */
+    override fun onDestroy() {
+        capdtmReader?.disconnect()
+        capdtmReader = null
+        super.onDestroy()
     }
 
     private fun dp(v: Int): Int = (resources.displayMetrics.density * v).toInt()
