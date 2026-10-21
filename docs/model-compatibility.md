@@ -558,3 +558,70 @@ for (i = 0; i < num_blocks; i++) if (hash[i] != last_hashs[i]) send_count++;
 
 验证方式：接上相机后跑 `python tools/camera/verify_osd_framerate.py <相机IP>`，
 它会直接打出帧头四个字段与块数。
+---
+
+## 12. 官方发布包里的实现细节（2026-10-21 补充）
+
+把 `nx-remote-controller-mod-v0.9` 的两个 zip 解包对照后，又确认了几件事。
+
+### 12.1 机型识别读的是 `/etc/version.info`
+
+官方 `common.sh`：
+
+```bash
+NX_MODEL=$(cat /etc/version.info | head -n 2 | tail -n 1)
+is_nx1()   { [ "$NX_MODEL" == "NX1" ]; }
+is_nx500() { [ "$NX_MODEL" == "NX500" ]; }
+is_nx300() { if is_nx1_nx500; then false; else true; fi; }   # ← 注意这个写法
+```
+
+即 shell 脚本里 **`is_nx300()` 的含义是"不是 NX1 也不是 NX500"**，
+所以任何其它机型（NX300M / NX2000 …）在脚本层都会走 NX300 分支。
+`nx_model.c` 里则是显式 `strcmp` 三个名字，其余落到默认。
+
+### 12.2 两个包自带同一套 userland，靠 chroot 运行
+
+两个 zip 里都包含（NX500 包在 `app/tools.tar` 里，约 20.7 MB）：
+
+```
+lib/libc.so.6            glibc 2.22
+lib/ld-2.22.so           自带动态加载器
+usr/lib/libxkbcommon.so.0
+usr/lib/libxdo.so.3
+usr/bin/nx-input-injector
+usr/bin/convert          完整 ImageMagick（libMagickCore/Wand 都在）
+usr/bin/xdotool / xwd / xwininfo / xev-nx / xvkbd / yad / strace
+```
+
+调用方式是 **chroot**：
+
+```bash
+TOOLS_PATH=$APP_PATH/tools
+CHROOT="chroot $TOOLS_PATH"
+XDOTOOL="$CHROOT xdotool"
+```
+
+→ 这解决了「`libxkbcommon` 需要 GLIBC 2.17、机身只有 2.13」的问题，
+**不需要重新编译任何库**。详见 `camera-side-input-failure.md` 的修正说明。
+
+### 12.3 NX300 与 NX1/NX500 的 LCD 控制机制不同
+
+| 机型 | `lcd_control.sh` 做法 |
+|---|---|
+| NX1 / NX500 | `xdotool windowmap` / `windowunmap` + `xev-nx`（X11 窗口层） |
+| NX300 | `st lcd set 3` / `st lcd set 4`（相机自带 `st` 工具） |
+
+对 App 没有影响（都通过 daemon 的 `/api/v1/lcd/*` 走），但说明两代机型的
+显示控制实现完全不同 —— 这也是为什么「B 门关相机屏」在两类机型上表现可能不同。
+
+### 12.4 启动方式确实是两套
+
+| 机型 | 启动链路 |
+|---|---|
+| NX300 | SD 卡 `autoexec.sh` → 挂 `/dev/pts` → `inetd` → `remote/start.sh` → `connect.sh`（连 WiFi） |
+| NX1 / NX500 | `nx-remote-controller-daemon.sh` → `lcd_control.sh on` → `execute.sh`（FIFO 命令循环 + 按键 keep-alive）→ daemon |
+
+NX300 靠 **autoexec（开机自跑）**；NX1/NX500 依赖 NX-KS / nx-patch 之类把脚本挂进启动流程。
+这与维护者指出的「NX-KS 是开启 Telnet 并连 WiFi 后服务随之启动」一致 ——
+**不存在"按 MOBILE 键启动"这个通用前提**（`mobile.sh` 只是给相机 App 发一个
+`XF86Mail` 键并关掉 yad 菜单，不是启动入口）。

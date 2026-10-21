@@ -5,7 +5,56 @@
 
 ---
 
-## 1. 结论速览
+## ⚠️ 后续修正（2026-10-21）：本文主结论已被推翻
+
+本文写于 2026-10-14，当时只看到一个**中间状态**，结论下得太早。后续证据：
+
+**1. 按键注入其实是可用的。** 之后用 OSD 变化块数做客观判据实测：
+
+| 注入 | OSD 变化块 |
+|---|---|
+| 静止基线（8 帧） | 0 |
+| `KP_Up` | 25 |
+| `KP_Enter`（OK） | 98 |
+| `Menu` | 98 |
+
+键盘注入**每次都可靠**（鼠标注入只在部分区域有效）。所以"注入失败"不成立。
+
+**2. `GLIBC_2.17` 不是"无法绕过"的门槛 —— 官方包本来就是用 chroot 解决的。**
+官方发布包（`nx-remote-controller-mod-v0.9_*.zip`）自带一整套 userland：
+
+```
+tools/lib/libc.so.6        glibc 2.22
+tools/lib/ld-2.22.so       自带动态加载器
+tools/usr/lib/libxkbcommon.so.0
+tools/usr/lib/libxdo.so.3          ← 本文说"找不到"的那个
+tools/usr/bin/nx-input-injector
+tools/usr/bin/convert              ← 完整 ImageMagick
+```
+
+而 `common.sh` 里是这么用的：
+
+```bash
+TOOLS_PATH=$APP_PATH/tools
+CHROOT="chroot $TOOLS_PATH"
+XDOTOOL="$CHROOT xdotool"
+XEV_NX="$CHROOT xev-nx"
+```
+
+**即：所有工具都 `chroot` 进自带 userland 运行，用的是包内的 glibc 2.22**，
+根本不去碰机身那套 2.13。所以 §6 里"重新交叉编译"那几条方案都是**不必要的工作**。
+
+**3. 本文为什么会得出错误结论？** 当时观测的是 NX-KS 自带脚本
+（`/opt/usr/nx-ks/nx-rc/tools/...`）在**未 chroot** 的情况下直接跑 injector，
+于是撞上机身 glibc 2.13。官方包的启动方式不是这样。
+
+**保留本文的价值**：§5 的快门时序（S1 半按 → S2 → 松 S1）与 §4 的 XTEST 结论仍然成立，
+后来在多机型调研中还被 ge0rg wiki 独立印证（NX300 的 `st key` 也是
+"push s1 / click s2 / release s1"）。
+
+---
+
+## 1. 结论速览（**以下状态列已被上面的修正覆盖**）
 
 | 功能 | 状态 | 说明 |
 |---|---|---|
@@ -13,8 +62,8 @@
 | 浏览照片 / 缩略图 | ✅ 可用 | 8080 CGI `dirlist` + `thumb` |
 | 下载原图 / RAW | ✅ 可用 | 80 端口 `/DCIM/...` |
 | 实时取景（liveview） | ✅ 可用 | 高清 178ms/帧、低清 126ms/帧 |
-| **遥控按键注入** | ❌ **相机端失败** | `nx-input-injector` 缺依赖，见下 |
-| 遥控快门（走按键） | ❌ 同样失败 | 依赖按键注入 |
+| **遥控按键注入** | ~~❌ 相机端失败~~ → **✅ 可用** | 当时误判；见上方修正 |
+| 遥控快门（走按键） | ~~❌ 同样失败~~ → **✅ 可用** | S1/S2 时序已实测 |
 | `shutter/normal` 接口 | ⚠️ 部分 | 只写 `ADJUSTSHUTTERTYPE`，未见实际拍照 |
 | 静音快门 | ⚠️ 未生效 | 同上 |
 
@@ -110,12 +159,16 @@ sleep 1200ms              # 冷却
 
 ## 6. 修复选项
 
+> ⚠️ **本节已被上方「后续修正」推翻。** 官方包用 `chroot tools/` 跑自带 glibc 2.22，
+> 不需要重新编译任何库。下面几条只适用于"自己搭了一套不带 chroot 的启动脚本"的情况。
+
 | 方案 | 做法 | 可行性 |
 |---|---|---|
-| **A** | 用 glibc 2.13 兼容工具链重新交叉编译 `libxdo.so.3` 与 `libxkbcommon.so.0`，替换掉现有版本 | ⭐ 最干净的根治方案 |
-| **A2** | 只重编 `libxkbcommon`（静态链接掉 glibc 2.17 依赖），`libxdo` 用现成的 | 折中，工作量小一些 |
-| **B** | 让 daemon 启动时把 `tools/usr/lib` 加进 `LD_LIBRARY_PATH` | ⚠️ 只能解决第一级，仍会撞上 GLIBC_2.17 |
-| **C** | 不走近端注入，改用相机自带的 `st` 调试命令或直接写 `/dev/input/event*` | ⚠️ `st cap lens` 已被 MCB 占用挡住；`/dev/input` 注入需要自编 ARM 程序，主机上没有交叉编译器 |
+| ~~**A**~~ | 用 glibc 2.13 兼容工具链重新交叉编译 `libxdo.so.3` 与 `libxkbcommon.so.0` | ❌ 不必要：官方包自带 glibc 2.22 |
+| ~~**A2**~~ | 只重编 `libxkbcommon`（静态链接掉 glibc 2.17 依赖） | ❌ 同上 |
+| ~~**B**~~ | 让 daemon 启动时把 `tools/usr/lib` 加进 `LD_LIBRARY_PATH` | ⚠️ 仍会撞 GLIBC_2.17；正解是 `chroot tools/` |
+| **C** | 不走近端注入，改用相机自带的 `st` 调试命令或直接写 `/dev/input/event*` | ⚠️ `st cap lens` 已被 MCB 占用挡住；`/dev/input` 注入需要自编 ARM 程序 |
+| **D（推荐）** | 用官方 `common.sh` 的 `CHROOT="chroot $TOOLS_PATH"` 方式调用工具 | ✅ 官方采用，无需改任何库 |
 
 ---
 
